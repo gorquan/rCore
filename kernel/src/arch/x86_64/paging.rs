@@ -155,9 +155,12 @@ impl InactivePageTable for InactivePageTable0 {
         let table = unsafe { &mut *(0xffffffff_fffff000 as *mut x86PageTable) };
         // Kernel at 0xffff_ff00_0000_0000
         // Kernel stack at 0x0000_57ac_0000_0000 (defined in bootloader crate)
+        // Kernel vmalloc region at 0xffff_fe80_0000_0000 (table[509]): here lies a virtual page table.
         let e510 = table[510].clone();
         let estack = table[175].clone();
+        let evmap=table[509].clone();
         self.edit(|_| {
+            table[509].set_addr(evmap.addr(), evmap.flags()|EF::GLOBAL);
             table[510].set_addr(e510.addr(), e510.flags() | EF::GLOBAL);
             table[175].set_addr(estack.addr(), estack.flags() | EF::GLOBAL);
         });

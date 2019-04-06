@@ -14,6 +14,7 @@ pub mod consts;
 pub mod timer;
 pub mod syscall;
 pub mod rand;
+pub mod ipi;
 
 static AP_CAN_INIT: AtomicBool = ATOMIC_BOOL_INIT;
 
@@ -50,6 +51,7 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
 
     crate::process::init();
 
+    crate::lkm::manager::ModuleManager::init();
     AP_CAN_INIT.store(true, Ordering::Relaxed);
 
     crate::kmain();

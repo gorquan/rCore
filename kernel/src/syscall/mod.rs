@@ -22,6 +22,9 @@ use self::time::*;
 use self::net::*;
 use self::misc::*;
 use self::custom::*;
+use crate::lkm::manager::sys_init_module;
+
+//use crate::backtrace::lr;
 
 mod fs;
 mod mem;
@@ -31,6 +34,24 @@ mod net;
 mod misc;
 mod custom;
 
+#[inline(always)]
+pub fn lr() -> usize {
+    let ptr: usize;
+    #[cfg(target_arch = "aarch64")]
+        unsafe {
+        asm!("mov $0, x30" : "=r"(ptr));
+    }
+    #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
+        unsafe {
+        asm!("mv $0, ra" : "=r"(ptr));
+    }
+    #[cfg(target_arch = "x86_64")]
+        unsafe {
+        asm!("movq 8(%rbp), $0" : "=r"(ptr));
+    }
+
+    ptr
+}
 /// System call dispatcher
 // This #[deny(unreachable_patterns)] checks if each match arm is defined
 // See discussion in https://github.com/oscourse-tsinghua/rcore_plus/commit/17e644e54e494835f1a49b34b80c2c4f15ed0dbe.
@@ -45,7 +66,7 @@ pub fn syscall(id: usize, args: [usize; 6], tf: &mut TrapFrame) -> isize {
         // we trust pid 0 process
         debug!("{}:{}:{} syscall id {} begin", cid, pid, tid, id);
     }
-
+    //warn!("{}:{}:{} syscall id {} begin", cid, pid, tid, id);
     // use syscall numbers in Linux x86_64
     // See https://filippo.io/linux-syscall-table/
     // And https://fedora.juszkiewicz.com.pl/syscalls.html.
@@ -228,12 +249,16 @@ pub fn syscall(id: usize, args: [usize; 6], tf: &mut TrapFrame) -> isize {
         SYS_MAP_PCI_DEVICE => sys_map_pci_device(args[0], args[1]),
         SYS_GET_PADDR => sys_get_paddr(args[0] as *const u64, args[1] as *mut u64, args[2]),
 
+
+
         _ => {
+
             #[cfg(target_arch = "x86_64")]
             let x86_64_ret = x86_64_syscall(id, args, tf);
             #[cfg(not(target_arch = "x86_64"))]
             let x86_64_ret = None;
             if let Some(ret) = x86_64_ret {
+                warn!("x86_64 syscall {}\n", id);
                 ret
             } else {
                 error!("unknown syscall id: {}, args: {:x?}", id, args);
@@ -250,7 +275,7 @@ pub fn syscall(id: usize, args: [usize; 6], tf: &mut TrapFrame) -> isize {
         Err(err) => -(err as isize),
     }
 }
-
+const leakdata : &str= "Important constant in kernel.";
 #[cfg(target_arch = "x86_64")]
 fn x86_64_syscall(id: usize, args: [usize; 6], tf: &mut TrapFrame) -> Option<SysResult> {
     let ret = match id {
@@ -285,6 +310,22 @@ fn x86_64_syscall(id: usize, args: [usize; 6], tf: &mut TrapFrame) -> Option<Sys
         SYS_EPOLL_CREATE => {
             warn!("sys_epoll_create is unimplemented");
             Err(SysError::ENOSYS)
+        }
+        SYS_INIT_MODULE=>{
+            //warn!("[LKM] sys_init_module is unimplemented");
+            sys_init_module(args[0] as *const u8, args[1] as usize, args[2] as *const u8)
+            //Err(SysError::ENOSYS)
+            // Err(SysError::ENOSYS)
+        }
+        SYS_FINIT_MODULE=>{
+            debug!("[LKM] sys_finit_module is unimplemented");
+
+            Err(SysError::ENOSYS)
+        }
+        SYS_DELETE_MODULE=>{
+            warn!("[LKM] sys_delete_module is unimplemented");
+            Err(SysError::ENOSYS)
+
         }
         _ => {
             return None;

@@ -1,0 +1,5 @@
+name:hello_lkm
+version:114
+api_version:514
+exported_symbols:init_module
+dependence:

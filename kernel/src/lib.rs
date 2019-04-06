@@ -34,6 +34,7 @@ mod trap;
 mod shell;
 mod drivers;
 mod net;
+mod lkm;
 mod backtrace;
 
 #[allow(dead_code)]
