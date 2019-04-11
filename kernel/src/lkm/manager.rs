@@ -25,17 +25,18 @@ use crate::syscall::SysResult;
 use core::slice;
 use core::mem::transmute;
 use crate::syscall::SysError::*;
-
+use alloc::boxed::Box;
+use crate::lkm::structs::ModuleState::{Ready, Unloading};
 
 // Module Manager is the core part of LKM.
 // It does these jobs: Load preset(API) symbols; manage module loading dependency and linking modules; managing kseg2 virtual space.
-pub struct ModuleManager<'a>{
+pub struct ModuleManager{
     stub_symbols: Vec<ModuleSymbol>,
-    loaded_modules: Vec<LoadedModule<'a>>
+    loaded_modules: Vec<Box<LoadedModule>>
 }
 
 lazy_static!{
-    static ref LKM_MANAGER: Mutex<Option<ModuleManager<'static> >>=Mutex::new(None);
+    static ref LKM_MANAGER: Mutex<Option<ModuleManager >>=Mutex::new(None);
 }
 
 macro_rules! export_stub{
@@ -54,18 +55,25 @@ unsafe fn write_to_addr(base: usize, offset: usize, val:usize){
         *(addr as *mut usize)=val;
     }
 }
-impl<'a> ModuleManager<'a>{
+impl ModuleManager{
 
     fn create_stub_symbol(symbol_name: &str, symbol_loc: usize)->ModuleSymbol{
         ModuleSymbol{name: String::from(symbol_name), loc: symbol_loc}
     }
     fn init_stub_symbols()->Vec<ModuleSymbol>{
         vec! [
-            export_stub!(lkm_api_pong)
-
+            export_stub!(lkm_api_pong),
+            export_stub!(lkm_api_debug),
+            export_stub!(lkm_api_query_symbol)
         ]
     }
-    fn find_symbol_in_deps(&self, symbol:&str)->Option<usize>{
+    pub fn resolve_symbol(&self, symbol: &str)->Option<usize>{
+        self.find_symbol_in_deps(symbol, 0)
+    }
+    fn find_symbol_in_deps(&self, symbol:&str, this_module: usize)->Option<usize>{
+        if symbol=="THIS_MODULE"{
+            return Some(this_module);
+        }
         for sym in self.stub_symbols.iter(){
             if (&sym.name)==symbol{
                 return Some(sym.loc);
@@ -81,11 +89,11 @@ impl<'a> ModuleManager<'a>{
         }
         None
     }
-    fn get_symbol_loc(&self, symbol_index: usize, elf: &ElfFile, dynsym: &[DynEntry64], base:usize, find_dependency: bool)->Option<usize>{
+    fn get_symbol_loc(&self, symbol_index: usize, elf: &ElfFile, dynsym: &[DynEntry64], base:usize, find_dependency: bool, this_module: usize)->Option<usize>{
         let selected_symbol=&dynsym[symbol_index];
         if selected_symbol.shndx()==0 {
             if find_dependency {
-                self.find_symbol_in_deps(selected_symbol.get_name(elf).unwrap())
+                self.find_symbol_in_deps(selected_symbol.get_name(elf).unwrap(), this_module)
             }else{
                 None
             }
@@ -118,7 +126,8 @@ impl<'a> ModuleManager<'a>{
             error!("[LKM] rcore-lkm metadata not found!");
             ENOEXEC
         })?;
-        //TODO: do some check here.
+
+
         if let Undefined(info_content)=lkm_info.get_data(&elf).map_err(|_|{
             error!("[LKM] load rcore-lkm error!");
             ENOEXEC
@@ -128,8 +137,39 @@ impl<'a> ModuleManager<'a>{
                 error!("[LKM] parse info error!");
                 ENOEXEC
             })?;
+            //Check dependencies
             println!("[LKM] loading module {} version {} api_version {}", minfo.name, minfo.version, minfo.api_version);
-
+            for i in 0..self.loaded_modules.len(){
+                if self.loaded_modules[i].info.name==minfo.name{
+                    error!("[LKM] another instance of module {} (api version {}) has been loaded!", self.loaded_modules[i].info.name, self.loaded_modules[i].info.api_version);
+                    return Err(EEXIST);
+                }
+            }
+            let mut used_dependents: Vec<usize>=vec![];
+            //let loaded_module_list=&mut self.loaded_modules;
+            for module in minfo.dependent_modules.iter(){
+                let mut module_found=false;
+                for i in 0..self.loaded_modules.len(){
+                    let loaded_module=&(self.loaded_modules[i]);
+                    if loaded_module.info.name==module.name{
+                        if loaded_module.info.api_version==module.api_version {
+                            used_dependents.push(i);
+                            module_found = true;
+                            break;
+                        }else{
+                            error!("[LKM] dependent module {} found but with a different api version {}!", loaded_module.info.name, loaded_module.info.api_version);
+                            return Err(ENOEXEC);
+                        }
+                    }
+                }
+                if !module_found{
+                    error!("[LKM] dependent module not found! {}", module.name);
+                    return Err(ENOEXEC);
+                }
+            }
+            for module in used_dependents{
+                self.loaded_modules[module].used_counts+=1;
+            }
             let mut max_addr:usize;
             let mut min_addr: usize;
             let mut off_start: usize;
@@ -195,12 +235,15 @@ impl<'a> ModuleManager<'a>{
                     }
                 }
             }
-            let mut loaded_minfo=LoadedModule{
+            let mut loaded_minfo=Box::new(LoadedModule{
                 info: minfo,
                 exported_symbols: Vec::new(),
                 used_counts:0,
-                vspace: vspace
-            };
+                using_counts:0,
+                vspace: vspace,
+                lock: Mutex::new(()),
+                state: Ready
+            });
             println!("[LKM] module load done at {}, now need to do the relocation job.", base);
             // We only search two tables for relocation info: the symbols from itself, and the symbols from the global exported symbols.
             let dynsym_table={
@@ -236,9 +279,10 @@ impl<'a> ModuleManager<'a>{
                     }
                 }
                 println!("[LKM] relocating three sections");
-                self.reloc_symbols(&elf, reloc_jmprel, base, dynsym_table);
-                self.reloc_symbols(&elf, reloc_rel, base,dynsym_table);
-                self.reloc_symbols(&elf, reloc_rela, base,dynsym_table);
+                let this_module=&(*loaded_minfo) as *const _ as usize;
+                self.reloc_symbols(&elf, reloc_jmprel, base, dynsym_table, this_module);
+                self.reloc_symbols(&elf, reloc_rel, base,dynsym_table, this_module);
+                self.reloc_symbols(&elf, reloc_rela, base,dynsym_table, this_module);
                 println!("[LKM] relocation done. adding module to manager and call init_module");
                 let mut lkm_entry:usize=0;
                 for exported in loaded_minfo.info.exported_symbols.iter(){
@@ -248,16 +292,21 @@ impl<'a> ModuleManager<'a>{
                                 name: exported.clone(),
                                 loc: base+(sym.value() as usize)
                             };
-                            loaded_minfo.exported_symbols.push(exported_symbol);
+
                             if exported=="init_module"{
                                 lkm_entry=base+(sym.value() as usize);
+                            }else{
+                                loaded_minfo.exported_symbols.push(exported_symbol);
                             }
                         }
                     }
                 }
+                // Now everything is done, and the entry can be safely plugged into the vector.
+                self.loaded_modules.push(loaded_minfo);
                 if lkm_entry>0 {
                     println!("[LKM] calling init_module at {}", lkm_entry);
                     unsafe{
+                        LKM_MANAGER.force_unlock();
                         let init_module:fn()=transmute(lkm_entry);
                         (init_module)();
                     }
@@ -279,8 +328,8 @@ impl<'a> ModuleManager<'a>{
 
     }
 
-    fn relocate_single_symbol(&mut self, base: usize, reloc_addr: usize, addend: usize, sti: usize, itype: usize, elf: &ElfFile, dynsym: &[DynEntry64]){
-        let sym_val=self.get_symbol_loc(sti, elf, dynsym, base, true).expect("[LKM] resolve symbol failed!");
+    fn relocate_single_symbol(&mut self, base: usize, reloc_addr: usize, addend: usize, sti: usize, itype: usize, elf: &ElfFile, dynsym: &[DynEntry64], this_module: usize){
+        let sym_val=self.get_symbol_loc(sti, elf, dynsym, base, true,this_module).expect("[LKM] resolve symbol failed!");
         match itype as usize{
             loader::REL_NONE=>{}
             loader::REL_OFFSET32=>{
@@ -302,7 +351,7 @@ impl<'a> ModuleManager<'a>{
             _=>{panic!("[LKM] unsupported relocation type: {}", itype);}
         }
     }
-    fn reloc_symbols(&mut self, elf: &ElfFile, (start, total_size, single_size):(usize, usize, usize), base: usize, dynsym: &[DynEntry64]){
+    fn reloc_symbols(&mut self, elf: &ElfFile, (start, total_size, single_size):(usize, usize, usize), base: usize, dynsym: &[DynEntry64], this_module: usize){
         if total_size==0 {return;}
         for s in elf.section_iter(){
             if (s.offset() as usize)==start{
@@ -315,7 +364,7 @@ impl<'a> ModuleManager<'a>{
                                 let mut reloc_addr=item.get_offset() as usize;
                                 let sti=item.get_symbol_table_index() as usize;
                                 let itype=item.get_type() as usize;
-                                self.relocate_single_symbol(base, reloc_addr, addend, sti, itype, elf, dynsym);
+                                self.relocate_single_symbol(base, reloc_addr, addend, sti, itype, elf, dynsym, this_module);
                             }
                         }
                         SectionData::Rel64(rel_items)=>{
@@ -324,7 +373,7 @@ impl<'a> ModuleManager<'a>{
                                 let mut reloc_addr=item.get_offset() as usize;
                                 let sti=item.get_symbol_table_index() as usize;
                                 let itype=item.get_type() as usize;
-                                self.relocate_single_symbol(base, reloc_addr, addend, sti, itype, elf, dynsym);
+                                self.relocate_single_symbol(base, reloc_addr, addend, sti, itype, elf, dynsym, this_module);
                             }
                         }
                         _=>{panic!("[LKM] bad relocation section type!");}
@@ -336,8 +385,56 @@ impl<'a> ModuleManager<'a>{
             }
         }
     }
-    pub fn delete_module(&mut self, name: &str, flags:u32){
-        unimplemented!("[LKM] You can't plug out what's INSIDE you, RIGHT?");
+    pub fn delete_module(&mut self, name: &str, flags:u32)->SysResult{
+        //unimplemented!("[LKM] You can't plug out what's INSIDE you, RIGHT?");
+
+        info!("[LKM] now you can plug out a kernel module!");
+        let mut found=false;
+        for i in 0..self.loaded_modules.len(){
+
+            if &(self.loaded_modules[i].info.name) == name{
+                let mut current_module=&mut (self.loaded_modules[i]);
+                let mod_lock=current_module.lock.lock();
+                if current_module.used_counts >0{
+                    error!("[LKM] some module depends on this module!");
+                    return Err(EAGAIN);
+                }
+                if current_module.using_counts>0{
+                    error!("[LKM] there are references to the module!");
+                }
+                let mut cleanup_func:usize=0;
+                for entry in current_module.exported_symbols.iter(){
+                    if (&(entry.name))=="cleanup_module"{
+                        cleanup_func=entry.loc;
+                        break;
+                    }
+                }
+                if cleanup_func >0{
+                    unsafe{
+                        current_module.state=Unloading;
+                        let cleanup_module:fn()=transmute(cleanup_func);
+                        (cleanup_module)();
+                    }
+                }else{
+                    error!("[LKM] you cannot plug this module out.");
+                    return Err(EBUSY);
+                }
+                drop(mod_lock);
+
+                let my_box=self.loaded_modules.remove(i);
+                unsafe {LKM_MANAGER.force_unlock();}
+                //drop(mod_lock);
+                found=true;
+                break;
+            }
+        }
+        if found{
+            Ok(0)
+        }else{
+            Err(ENOENT)
+        }
+
+
     }
     pub fn with<T>(f: impl FnOnce(&mut ModuleManager)->T)->T{
         let global_lkmm: &Mutex<Option<ModuleManager>>=&LKM_MANAGER;
@@ -363,9 +460,25 @@ impl<'a> ModuleManager<'a>{
 
 
 pub fn sys_init_module(module_image:*const u8, len: usize, param_values: *const u8)->SysResult{
+    use crate::process::process;
+    let mut proc=process();
+    proc.vm.check_read_array(module_image, len)?;
+    let copied_param_values=unsafe {proc.vm.check_and_clone_cstr(param_values)?};
     let modimg=unsafe {slice::from_raw_parts(module_image, len)};
 
     ModuleManager::with(|kmm| {
-       kmm.init_module(modimg, "")
+       kmm.init_module(modimg, &copied_param_values)
     })
+}
+
+pub fn sys_delete_module(module_name: *const u8, flags: u32)->SysResult{
+    use crate::process::process;
+    let mut proc=process();
+    let copied_modname=unsafe {proc.vm.check_and_clone_cstr(module_name)?};
+    println!("[LKM] Removing module {}", copied_modname);
+    let ret=ModuleManager::with(|kmm| {
+        kmm.delete_module(&copied_modname, flags)
+    });
+    println!("[LKM] Remove module {} done!", copied_modname);
+    ret
 }

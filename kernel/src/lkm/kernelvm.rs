@@ -150,17 +150,17 @@ lazy_static!{
 
 // Represents a contiguous virtual area: like the ancient loader.
 // Use RAII for exception handling
-pub struct VirtualSpace<'a>{
+pub struct VirtualSpace{
     start: usize,
     size: usize,
     areas: Vec<VirtualArea>,
-    allocator: &'a LockedVMM,
+    allocator: &'static LockedVMM,
     page_allocator: ByFrame<GlobalFrameAlloc>
 
 }
 
-impl<'a> VirtualSpace<'a>{
-    pub fn new(allocator: &'a LockedVMM, size: usize)->Option<VirtualSpace<'a>>{
+impl VirtualSpace{
+    pub fn new(allocator: &'static LockedVMM, size: usize)->Option<VirtualSpace>{
         let mut vmm=allocator.lock();
         let (start, rsize)=vmm.alloc(size)?;
         Some(VirtualSpace{
@@ -199,7 +199,7 @@ impl<'a> VirtualSpace<'a>{
     }
 }
 
-impl<'a> Drop for VirtualSpace<'a>{
+impl Drop for VirtualSpace{
     fn drop(&mut self){
         for mut v in self.areas.iter_mut(){
             v.unmap(self.allocator, &mut self.page_allocator);

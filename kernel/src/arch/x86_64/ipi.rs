@@ -31,7 +31,7 @@ impl<A> InvokeEventHandle for InvokeEvent<A>{
     fn call(&self){
         let arg_ref=self.argument.as_ref();
         (self.function)(arg_ref);
-        println!("Release!");
+        println!("Release!", );
         self.done_semaphore.release();
         println!("Released!");
     }

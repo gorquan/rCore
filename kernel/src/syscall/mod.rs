@@ -22,7 +22,7 @@ use self::time::*;
 use self::net::*;
 use self::misc::*;
 use self::custom::*;
-use crate::lkm::manager::sys_init_module;
+use crate::lkm::manager::{sys_init_module, sys_delete_module};
 
 //use crate::backtrace::lr;
 
@@ -323,9 +323,9 @@ fn x86_64_syscall(id: usize, args: [usize; 6], tf: &mut TrapFrame) -> Option<Sys
             Err(SysError::ENOSYS)
         }
         SYS_DELETE_MODULE=>{
-            warn!("[LKM] sys_delete_module is unimplemented");
-            Err(SysError::ENOSYS)
-
+            //warn!("[LKM] sys_delete_module is unimplemented");
+            //Err(SysError::ENOSYS)
+            sys_delete_module(args[0] as *const u8, args[1] as u32)
         }
         _ => {
             return None;
