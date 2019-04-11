@@ -1,93 +1,47 @@
-#[cfg(feature = "m_mode")]
-use riscv::register::{
-    mstatus as xstatus,
-    mscratch as xscratch,
-    mtvec as xtvec,
-};
-#[cfg(not(feature = "m_mode"))]
-use riscv::register::{
-    sstatus as xstatus,
-    sscratch as xscratch,
-    stvec as xtvec,
-};
-use riscv::register::{mcause, mepc, sie, mie};
-use crate::drivers::DRIVERS;
 pub use self::context::*;
+use crate::drivers::DRIVERS;
 use log::*;
+use riscv::register::*;
 
 #[path = "context.rs"]
 mod context;
 
-/*
-* @brief:
-*   initialize the interrupt status
-*/
+/// Initialize interrupt
 pub fn init() {
-    extern {
+    extern "C" {
         fn trap_entry();
     }
     unsafe {
         // Set sscratch register to 0, indicating to exception vector that we are
         // presently executing in the kernel
-        xscratch::write(0);
+        sscratch::write(0);
         // Set the exception vector address
-        xtvec::write(trap_entry as usize, xtvec::TrapMode::Direct);
+        stvec::write(trap_entry as usize, stvec::TrapMode::Direct);
         // Enable IPI
         sie::set_ssoft();
         // Enable external interrupt
         if super::cpu::id() == super::BOOT_HART_ID {
-            #[cfg(feature = "m_mode")]
-            mie::set_mext();
-            #[cfg(not(feature = "m_mode"))]
             sie::set_sext();
-            // NOTE: In M-mode: mie.MSIE is set by BBL.
-            //                  mie.MEIE can not be set in QEMU v3.0
-            //                  (seems like a bug)
         }
     }
     info!("interrupt: init end");
 }
 
-/*
-* @brief:
-*   enable interrupt
-*/
+/// Enable interrupt
 #[inline]
 pub unsafe fn enable() {
-    #[cfg(feature = "m_mode")]
-    xstatus::set_mie();
-    #[cfg(not(feature = "m_mode"))]
-    xstatus::set_sie();
+    sstatus::set_sie();
 }
 
-/*
-* @brief:
-*   store and disable interrupt
-* @retbal:
-*   a usize value store the origin sie
-*/
+/// Disable interrupt and return current interrupt status
 #[inline]
-#[cfg(feature = "m_mode")]
 pub unsafe fn disable_and_store() -> usize {
-    let e = xstatus::read().mie() as usize;
-    xstatus::clear_mie();
+    let e = sstatus::read().sie() as usize;
+    sstatus::clear_sie();
     e
 }
 
-#[inline]
-#[cfg(not(feature = "m_mode"))]
-pub unsafe fn disable_and_store() -> usize {
-    let e = xstatus::read().sie() as usize;
-    xstatus::clear_sie();
-    e
-}
-
-/*
-* @param:
-*   flags: input flag
-* @brief:
-*   enable interrupt if flags != 0
-*/
+/// Enable interrupt if `flags` != 0
 #[inline]
 pub unsafe fn restore(flags: usize) {
     if flags != 0 {
@@ -95,27 +49,21 @@ pub unsafe fn restore(flags: usize) {
     }
 }
 
-/*
-* @param:
-*   TrapFrame: the trapFrame of the Interrupt/Exception/Trap to be processed
-* @brief:
-*   process the Interrupt/Exception/Trap
-*/
+/// Dispatch and handle interrupt.
+///
+/// This function is called from `trap.asm`.
 #[no_mangle]
-pub extern fn rust_trap(tf: &mut TrapFrame) {
-    use self::mcause::{Trap, Interrupt as I, Exception as E};
-    trace!("Interrupt @ CPU{}: {:?} ", super::cpu::id(), tf.scause.cause());
+pub extern "C" fn rust_trap(tf: &mut TrapFrame) {
+    use self::scause::{Exception as E, Interrupt as I, Trap};
+    trace!(
+        "Interrupt @ CPU{}: {:?} ",
+        super::cpu::id(),
+        tf.scause.cause()
+    );
     match tf.scause.cause() {
-        // M-mode only
-        Trap::Interrupt(I::MachineExternal) => external(),
-        Trap::Interrupt(I::MachineSoft) => ipi(),
-        Trap::Interrupt(I::MachineTimer) => timer(),
-        Trap::Exception(E::MachineEnvCall) => sbi(tf),
-
         Trap::Interrupt(I::SupervisorExternal) => external(),
         Trap::Interrupt(I::SupervisorSoft) => ipi(),
         Trap::Interrupt(I::SupervisorTimer) => timer(),
-        Trap::Exception(E::IllegalInstruction) => illegal_inst(tf),
         Trap::Exception(E::UserEnvCall) => syscall(tf),
         Trap::Exception(E::LoadPageFault) => page_fault(tf),
         Trap::Exception(E::StorePageFault) => page_fault(tf),
@@ -125,21 +73,17 @@ pub extern fn rust_trap(tf: &mut TrapFrame) {
     trace!("Interrupt end");
 }
 
-/// Call BBL SBI functions for M-mode kernel
-fn sbi(tf: &mut TrapFrame) {
-    (super::BBL.mcall_trap)(tf.x.as_ptr(), tf.scause.bits(), tf.sepc);
-    tf.sepc += 4;
-}
-
 fn external() {
     #[cfg(feature = "board_u540")]
-    unsafe { super::board::handle_external_interrupt(); }
+    unsafe {
+        super::board::handle_external_interrupt();
+    }
 
     // true means handled, false otherwise
     let handlers = [try_process_serial, try_process_drivers];
     for handler in handlers.iter() {
         if handler() == true {
-            break
+            break;
         }
     }
 }
@@ -150,17 +94,17 @@ fn try_process_serial() -> bool {
             crate::trap::serial(ch);
             true
         }
-        None => false
+        None => false,
     }
 }
 
 fn try_process_drivers() -> bool {
     for driver in DRIVERS.read().iter() {
         if driver.try_handle_interrupt(None) == true {
-            return true
+            return true;
         }
     }
-    return false
+    return false;
 }
 
 fn ipi() {
@@ -168,44 +112,21 @@ fn ipi() {
     super::sbi::clear_ipi();
 }
 
-/*
-* @brief:
-*   process timer interrupt
-*/
 fn timer() {
     super::timer::set_next();
     crate::trap::timer();
 }
 
-/*
-* @param:
-*   TrapFrame: the Trapframe for the syscall
-* @brief:
-*   process syscall
-*/
 fn syscall(tf: &mut TrapFrame) {
-    tf.sepc += 4;   // Must before syscall, because of fork.
-    let ret = crate::syscall::syscall(tf.x[17], [tf.x[10], tf.x[11], tf.x[12], tf.x[13], tf.x[14], tf.x[15]], tf);
+    tf.sepc += 4; // Must before syscall, because of fork.
+    let ret = crate::syscall::syscall(
+        tf.x[17],
+        [tf.x[10], tf.x[11], tf.x[12], tf.x[13], tf.x[14], tf.x[15]],
+        tf,
+    );
     tf.x[10] = ret as usize;
 }
 
-/*
-* @param:
-*   TrapFrame: the Trapframe for the illegal inst exception
-* @brief:
-*   process IllegalInstruction exception
-*/
-fn illegal_inst(tf: &mut TrapFrame) {
-    (super::BBL.illegal_insn_trap)(tf.x.as_ptr(), tf.scause.bits(), tf.sepc);
-    tf.sepc = mepc::read();
-}
-
-/*
-* @param:
-*   TrapFrame: the Trapframe for the page fault exception
-* @brief:
-*   process page fault exception
-*/
 fn page_fault(tf: &mut TrapFrame) {
     let addr = tf.stval;
     trace!("\nEXCEPTION: Page Fault @ {:#x}", addr);

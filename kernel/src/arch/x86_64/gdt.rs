@@ -6,6 +6,7 @@ use x86_64::structures::tss::TaskStateSegment;
 use x86_64::registers::model_specific::Msr;
 use core::sync::atomic::{AtomicBool, Ordering};
 use super::ipi::IPIEventItem;
+
 use crate::consts::MAX_CPU_NUM;
 use crate::sync::{SpinLock as Mutex, Semaphore};
 use core::slice::Iter;
@@ -21,8 +22,7 @@ pub fn init() {
 
 static mut CPUS: [Option<Cpu>; MAX_CPU_NUM] = [
     // TODO: More elegant ?
-    None, None, None, None,
-    None, None, None, None,
+    None, None, None, None, None, None, None, None,
 ];
 
 pub struct Cpu {
@@ -87,7 +87,7 @@ impl Cpu {
         self.preemption_disabled.load(Ordering::Relaxed)
     }
     unsafe fn init(&'static mut self) {
-        use x86_64::instructions::segmentation::{set_cs, load_fs};
+        use x86_64::instructions::segmentation::{load_fs, set_cs};
         use x86_64::instructions::tables::load_tss;
 
         // Set the stack when DoubleFault occurs
@@ -125,13 +125,13 @@ impl Cpu {
 pub const DOUBLE_FAULT_IST_INDEX:  usize = 0;
 
 // Copied from xv6 x86_64
-const KCODE: Descriptor = Descriptor::UserSegment(0x0020980000000000);  // EXECUTABLE | USER_SEGMENT | PRESENT | LONG_MODE
-const UCODE: Descriptor = Descriptor::UserSegment(0x0020F80000000000);  // EXECUTABLE | USER_SEGMENT | USER_MODE | PRESENT | LONG_MODE
-const KDATA: Descriptor = Descriptor::UserSegment(0x0000920000000000);  // DATA_WRITABLE | USER_SEGMENT | PRESENT
-const UDATA: Descriptor = Descriptor::UserSegment(0x0000F20000000000);  // DATA_WRITABLE | USER_SEGMENT | USER_MODE | PRESENT
-// Copied from xv6
-const UCODE32: Descriptor = Descriptor::UserSegment(0x00cffa00_0000ffff);  // EXECUTABLE | USER_SEGMENT | USER_MODE | PRESENT
-const UDATA32: Descriptor = Descriptor::UserSegment(0x00cff200_0000ffff);  // EXECUTABLE | USER_SEGMENT | USER_MODE | PRESENT
+const KCODE: Descriptor = Descriptor::UserSegment(0x0020980000000000); // EXECUTABLE | USER_SEGMENT | PRESENT | LONG_MODE
+const UCODE: Descriptor = Descriptor::UserSegment(0x0020F80000000000); // EXECUTABLE | USER_SEGMENT | USER_MODE | PRESENT | LONG_MODE
+const KDATA: Descriptor = Descriptor::UserSegment(0x0000920000000000); // DATA_WRITABLE | USER_SEGMENT | PRESENT
+const UDATA: Descriptor = Descriptor::UserSegment(0x0000F20000000000); // DATA_WRITABLE | USER_SEGMENT | USER_MODE | PRESENT
+                                                                       // Copied from xv6
+const UCODE32: Descriptor = Descriptor::UserSegment(0x00cffa00_0000ffff); // EXECUTABLE | USER_SEGMENT | USER_MODE | PRESENT
+const UDATA32: Descriptor = Descriptor::UserSegment(0x00cff200_0000ffff); // EXECUTABLE | USER_SEGMENT | USER_MODE | PRESENT
 
 // NOTICE: for fast syscall:
 //   STAR[47:32] = K_CS   = K_SS - 8

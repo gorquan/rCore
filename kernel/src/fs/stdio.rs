@@ -22,13 +22,7 @@ impl Stdin {
     pub fn pop(&self) -> char {
         // QEMU v3.0 don't support M-mode external interrupt (bug?)
         // So we have to use polling.
-        #[cfg(feature = "m_mode")]
-            loop {
-            let c = crate::arch::io::getchar();
-            if c != '\0' { return c; }
-        }
-        #[cfg(not(feature = "m_mode"))]
-            loop {
+        loop {
             let ret = self.buf.lock().pop_front();
             match ret {
                 Some(c) => return c,
@@ -64,6 +58,7 @@ macro_rules! impl_inode {
         fn get_entry(&self, _id: usize) -> Result<String> { Err(FsError::NotDir) }
         fn fs(&self) -> Arc<FileSystem> { unimplemented!() }
         fn as_any_ref(&self) -> &Any { self }
+        fn chmod(&self, _mode: u16) -> Result<()> { Ok(()) }
     };
 }
 
@@ -72,16 +67,20 @@ impl INode for Stdin {
         buf[0] = self.pop() as u8;
         Ok(1)
     }
-    fn write_at(&self, _offset: usize, _buf: &[u8]) -> Result<usize> { unimplemented!() }
+    fn write_at(&self, _offset: usize, _buf: &[u8]) -> Result<usize> {
+        unimplemented!()
+    }
     impl_inode!();
 }
 
 impl INode for Stdout {
-    fn read_at(&self, _offset: usize, _buf: &mut [u8]) -> Result<usize> { unimplemented!() }
+    fn read_at(&self, _offset: usize, _buf: &mut [u8]) -> Result<usize> {
+        unimplemented!()
+    }
     fn write_at(&self, _offset: usize, buf: &[u8]) -> Result<usize> {
         use core::str;
         //we do not care the utf-8 things, we just want to print it!
-        let s = unsafe{ str::from_utf8_unchecked(buf) };
+        let s = unsafe { str::from_utf8_unchecked(buf) };
         print!("{}", s);
         Ok(buf.len())
     }

@@ -1,0 +1,959 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="f6e1a918-0bdf-413b-8660-07d93157d70a" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/../Cargo.toml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../bootloader/src/arch/mipsel/boot.S" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../bootloader/src/arch/mipsel/boot.ld" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../bootloader/src/arch/mipsel/mod.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../bootloader/targets/mipsel.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../crate/thread/src/scheduler/o1.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/arch/mipsel/board/malta/consts.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/arch/mipsel/board/malta/device.dts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/arch/mipsel/board/malta/mod.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/arch/mipsel/board/mipssim/consts.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/arch/mipsel/board/mipssim/device.dts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/arch/mipsel/board/mipssim/mod.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/arch/mipsel/board/thinpad/consts.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/arch/mipsel/board/thinpad/device.dts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/arch/mipsel/board/thinpad/mod.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/arch/mipsel/boot/context.S" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/arch/mipsel/boot/entry.S" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/arch/mipsel/boot/regdef.h" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/arch/mipsel/boot/trap.S" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/arch/mipsel/compiler_rt.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/arch/mipsel/consts.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/arch/mipsel/context.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/arch/mipsel/cpu.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/arch/mipsel/driver/mod.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/arch/mipsel/interrupt.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/arch/mipsel/io.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/arch/mipsel/memory.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/arch/mipsel/mod.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/arch/mipsel/paging.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/arch/mipsel/rand.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/arch/mipsel/syscall.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/arch/mipsel/timer.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/drivers/block/ahci.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/drivers/gpu/qemu_stdvga.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/drivers/serial/16550_reg.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/drivers/serial/simple_uart.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/drivers/serial/ti_16c550c.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/fs/file_like.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/targets/mipsel.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../tests/.gitignore" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../tests/hello_rust.cmd" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../tests/hello_rust.out" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/../.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../.travis.yml" beforeDir="false" afterPath="$PROJECT_DIR$/../.travis.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../README.md" beforeDir="false" afterPath="$PROJECT_DIR$/../README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../bootloader/Makefile" beforeDir="false" afterPath="$PROJECT_DIR$/../bootloader/Makefile" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../bootloader/build.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../bootloader/build.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../bootloader/src/arch/aarch64/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../bootloader/src/arch/aarch64/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../bootloader/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../bootloader/src/main.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../crate/bit-allocator/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../crate/bit-allocator/src/lib.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../crate/memory/src/addr.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../crate/memory/src/addr.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../crate/memory/src/cow.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../crate/memory/src/cow.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../crate/memory/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../crate/memory/src/lib.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../crate/memory/src/memory_set/handler/byframe.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../crate/memory/src/memory_set/handler/byframe.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../crate/memory/src/memory_set/handler/linear.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../crate/memory/src/memory_set/handler/linear.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../crate/memory/src/memory_set/handler/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../crate/memory/src/memory_set/handler/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../crate/memory/src/memory_set/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../crate/memory/src/memory_set/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../crate/memory/src/no_mmu.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../crate/memory/src/no_mmu.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../crate/memory/src/paging/ext.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../crate/memory/src/paging/ext.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../crate/memory/src/paging/mock_page_table.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../crate/memory/src/paging/mock_page_table.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../crate/memory/src/paging/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../crate/memory/src/paging/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../crate/memory/src/swap/fifo.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../crate/memory/src/swap/fifo.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../crate/memory/src/swap/mock_swapper.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../crate/memory/src/swap/mock_swapper.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../crate/memory/src/swap/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../crate/memory/src/swap/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../crate/sync/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../crate/sync/src/main.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../crate/sync/src/monitor.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../crate/sync/src/monitor.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../crate/sync/src/mutex.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../crate/sync/src/mutex.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../crate/thread/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/../crate/thread/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../crate/thread/build.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../crate/thread/build.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../crate/thread/src/interrupt.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../crate/thread/src/interrupt.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../crate/thread/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../crate/thread/src/lib.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../crate/thread/src/processor.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../crate/thread/src/processor.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../crate/thread/src/scheduler/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../crate/thread/src/scheduler/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../crate/thread/src/scheduler/rr.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../crate/thread/src/scheduler/rr.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../crate/thread/src/scheduler/stride.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../crate/thread/src/scheduler/stride.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../crate/thread/src/scheduler/work_stealing.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../crate/thread/src/scheduler/work_stealing.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../crate/thread/src/std_thread.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../crate/thread/src/std_thread.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../crate/thread/src/thread_pool.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../crate/thread/src/thread_pool.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../crate/thread/src/timer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../crate/thread/src/timer.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.lock" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Makefile" beforeDir="false" afterPath="$PROJECT_DIR$/Makefile" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build.rs" beforeDir="false" afterPath="$PROJECT_DIR$/build.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/aarch64/board/raspi3/fb.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/drivers/gpu/fb.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/aarch64/board/raspi3/mailbox.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/aarch64/board/raspi3/mailbox.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/aarch64/board/raspi3/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/aarch64/board/raspi3/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/aarch64/board/raspi3/serial.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/aarch64/board/raspi3/serial.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/aarch64/driver/console/color.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/drivers/console/color.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/aarch64/driver/console/fonts/font8x16.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/drivers/console/fonts/font8x16.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/aarch64/driver/console/fonts/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/drivers/console/fonts/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/aarch64/driver/console/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/drivers/console/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/aarch64/driver/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/aarch64/driver/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/aarch64/interrupt/context.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/aarch64/interrupt/context.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/aarch64/interrupt/handler.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/aarch64/interrupt/handler.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/aarch64/interrupt/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/aarch64/interrupt/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/aarch64/io.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/aarch64/io.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/aarch64/memory.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/aarch64/memory.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/aarch64/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/aarch64/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/aarch64/paging.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/aarch64/paging.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/aarch64/rand.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/aarch64/rand.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/aarch64/timer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/aarch64/timer.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/riscv32/board/k210/boot.asm" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/riscv32/board/k210/linker.ld" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/mipsel/boot/linker.ld" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/riscv32/board/u540/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/riscv32/board/u540/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/riscv32/boot/trap.asm" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/riscv32/boot/trap.asm" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/riscv32/compiler_rt.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/riscv32/compiler_rt.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/riscv32/consts.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/riscv32/consts.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/riscv32/context.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/riscv32/context.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/riscv32/cpu.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/riscv32/cpu.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/riscv32/interrupt.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/riscv32/interrupt.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/riscv32/io.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/riscv32/io.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/riscv32/memory.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/riscv32/memory.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/riscv32/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/riscv32/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/riscv32/paging.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/riscv32/paging.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/riscv32/rand.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/riscv32/rand.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/riscv32/sbi.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/riscv32/sbi.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/riscv32/timer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/riscv32/timer.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/x86_64/cpu.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/x86_64/cpu.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/x86_64/driver/ide.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/x86_64/driver/ide.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/x86_64/driver/keyboard.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/x86_64/driver/keyboard.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/x86_64/driver/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/x86_64/driver/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/x86_64/driver/pic.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/x86_64/driver/pic.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/x86_64/driver/pit.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/x86_64/driver/pit.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/x86_64/driver/rtc_cmos.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/x86_64/driver/rtc_cmos.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/x86_64/driver/vga.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/x86_64/driver/vga.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/x86_64/gdt.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/x86_64/gdt.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/x86_64/idt.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/x86_64/idt.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/x86_64/interrupt/consts.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/x86_64/interrupt/consts.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/x86_64/interrupt/fast_syscall.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/x86_64/interrupt/fast_syscall.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/x86_64/interrupt/handler.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/x86_64/interrupt/handler.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/x86_64/interrupt/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/x86_64/interrupt/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/x86_64/interrupt/trapframe.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/x86_64/interrupt/trapframe.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/x86_64/io.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/x86_64/io.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/x86_64/memory.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/x86_64/memory.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/x86_64/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/x86_64/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/x86_64/paging.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/x86_64/paging.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/arch/x86_64/timer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/x86_64/timer.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/backtrace.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/backtrace.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/drivers/block/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/drivers/block/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/drivers/block/virtio_blk.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/drivers/block/virtio_blk.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/drivers/bus/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/drivers/bus/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/drivers/bus/pci.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/drivers/bus/pci.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/drivers/device_tree.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/drivers/device_tree.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/drivers/input/virtio_input.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/drivers/input/virtio_input.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/drivers/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/drivers/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/drivers/net/e1000.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/drivers/net/e1000.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/drivers/net/ixgbe.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/drivers/net/ixgbe.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/drivers/net/virtio_net.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/drivers/net/virtio_net.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/fs/device.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/fs/device.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/fs/file.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/fs/file.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/fs/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/fs/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/fs/pipe.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/fs/pipe.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/fs/stdio.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/fs/stdio.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lang.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/lang.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/logging.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/logging.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/memory.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/memory.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/net/structs.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/net/structs.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/process/abi.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/process/abi.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/process/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/process/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/process/structs.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/process/structs.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/shell.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/shell.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sync/condvar.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/sync/condvar.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sync/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/sync/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sync/mpsc.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/sync/mpsc.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sync/mutex.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/sync/mutex.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sync/semaphore.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/sync/semaphore.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sync/test.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/sync/test.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/syscall/custom.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/syscall/custom.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/syscall/fs.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/syscall/fs.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/syscall/mem.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/syscall/mem.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/syscall/misc.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/syscall/misc.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/syscall/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/syscall/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/syscall/net.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/syscall/net.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/syscall/proc.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/syscall/proc.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/syscall/time.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/syscall/time.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/trap.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/trap.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/util/escape_parser.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/util/escape_parser.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/util/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/util/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../rust-toolchain" beforeDir="false" afterPath="$PROJECT_DIR$/../rust-toolchain" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../tests/fork.exp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../tests/killtest.exp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../tests/test.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../tests/test.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../tools/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../tools/addr2line.py" beforeDir="false" afterPath="$PROJECT_DIR$/../tools/addr2line.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../tools/k210/kflash.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../user" beforeDir="false" afterPath="$PROJECT_DIR$/../user" afterDir="false" />
+    </list>
+    <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileEditorManager">
+    <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/src/arch/x86_64/ipi.rs">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="435">
+              <caret line="71" column="26" selection-start-line="71" selection-start-column="26" selection-end-line="71" selection-end-column="26" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/src/lkm/kernelvm.rs">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="299">
+              <caret line="215" column="43" lean-forward="true" selection-start-line="215" selection-start-column="43" selection-end-line="215" selection-end-column="43" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/src/sync/semaphore.rs">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="195">
+              <caret line="34" column="7" selection-start-line="34" selection-start-column="7" selection-end-line="34" selection-end-column="7" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/src/sync/condvar.rs">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="435">
+              <caret line="53" column="20" lean-forward="true" selection-start-line="53" selection-start-column="20" selection-end-line="53" selection-end-column="20" />
+              <folding>
+                <element signature="e#256#257#0" expanded="true" />
+                <element signature="e#289#290#0" expanded="true" />
+                <element signature="e#2323#2324#0" expanded="true" />
+                <element signature="e#2369#2370#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/src/syscall/mod.rs">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="225">
+              <caret line="76" column="24" lean-forward="true" selection-start-line="76" selection-start-column="24" selection-end-line="76" selection-end-column="24" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/src/arch/x86_64/mod.rs">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="-273">
+              <caret line="13" column="13" selection-start-line="13" selection-start-column="13" selection-end-line="13" selection-end-column="13" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/src/arch/x86_64/gdt.rs">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="150">
+              <caret line="10" column="20" selection-start-line="10" selection-start-column="20" selection-end-line="10" selection-end-column="20" />
+              <folding>
+                <element signature="e#1960#1961#0" expanded="true" />
+                <element signature="e#1982#1983#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/src/lib.rs">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="540">
+              <caret line="36" column="8" selection-start-line="36" selection-start-column="8" selection-end-line="36" selection-end-column="8" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/src/process/mod.rs">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="210">
+              <caret line="14" column="34" selection-start-line="14" selection-start-column="34" selection-end-line="14" selection-end-column="34" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/../crate/thread/src/thread_pool.rs">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="339">
+              <caret line="193" column="16" selection-start-line="193" selection-start-column="16" selection-end-line="193" selection-end-column="16" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+    </leaf>
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Rust File" />
+      </list>
+    </option>
+  </component>
+  <component name="FindInProjectRecents">
+    <findStrings>
+      <find>mut</find>
+      <find>&amp;mut</find>
+      <find>KERNELVM_</find>
+      <find>Must be some shared</find>
+      <find>LockedHea</find>
+      <find>LockedVMM</find>
+      <find>notnull</find>
+      <find>alloc_</find>
+      <find>Linear</find>
+      <find>SpinNoIrq</find>
+      <find>yield</find>
+      <find>loaded_minfo</find>
+      <find>dependence</find>
+      <find>init_module</find>
+      <find>depen</find>
+      <find>dependent_modules</find>
+      <find>LockedVmm</find>
+      <find>LoadedModule</find>
+      <find>'</find>
+      <find>buddy</find>
+      <find>used_counts</find>
+      <find>get_symbol_loc</find>
+      <find>manager</find>
+      <find>as usize</find>
+      <find>&amp;(*</find>
+      <find>utf</find>
+      <find>mknod</find>
+      <find>EAGAIN</find>
+      <find>EWOULD</find>
+      <find>unpark</find>
+    </findStrings>
+    <replaceStrings>
+      <replace>|_|</replace>
+    </replaceStrings>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
+  </component>
+  <component name="IdeDocumentHistory">
+    <option name="CHANGED_PATHS">
+      <list>
+        <option value="$PROJECT_DIR$/src/lkm/struct.rs" />
+        <option value="$PROJECT_DIR$/src/backtrace.rs" />
+        <option value="$PROJECT_DIR$/src/memory.rs" />
+        <option value="$PROJECT_DIR$/src/arch/x86_64/paging.rs" />
+        <option value="$PROJECT_DIR$/src/arch/x86_64/memory.rs" />
+        <option value="$PROJECT_DIR$/src/process/structs.rs" />
+        <option value="$PROJECT_DIR$/Cargo.toml" />
+        <option value="$PROJECT_DIR$/src/syscall/fs.rs" />
+        <option value="$PROJECT_DIR$/src/lkm/loader.rs" />
+        <option value="$PROJECT_DIR$/src/arch/x86_64/interrupt/consts.rs" />
+        <option value="$PROJECT_DIR$/src/trap.rs" />
+        <option value="$PROJECT_DIR$/src/arch/x86_64/interrupt/handler.rs" />
+        <option value="$PROJECT_DIR$/src/lkm/vmem_rbtree.rs" />
+        <option value="$PROJECT_DIR$/src/lkm/mod.rs" />
+        <option value="$PROJECT_DIR$/src/lkm/kernelvm.rs" />
+        <option value="$PROJECT_DIR$/src/lkm/list_manager.rs" />
+        <option value="$PROJECT_DIR$/src/lkm/api.rs" />
+        <option value="$PROJECT_DIR$/src/lkm/structs.rs" />
+        <option value="$PROJECT_DIR$/src/lkm/manager.rs" />
+        <option value="$PROJECT_DIR$/src/sync/condvar.rs" />
+        <option value="$PROJECT_DIR$/../crate/thread/src/thread_pool.rs" />
+        <option value="$PROJECT_DIR$/src/sync/semaphore.rs" />
+        <option value="$PROJECT_DIR$/src/arch/x86_64/ipi.rs" />
+        <option value="$PROJECT_DIR$/src/lib.rs" />
+        <option value="$PROJECT_DIR$/src/syscall/mod.rs" />
+        <option value="$PROJECT_DIR$/src/arch/x86_64/mod.rs" />
+        <option value="$PROJECT_DIR$/src/arch/x86_64/gdt.rs" />
+      </list>
+    </option>
+  </component>
+  <component name="ProjectFrameBounds">
+    <option name="y" value="23" />
+    <option name="width" value="1620" />
+    <option name="height" value="1017" />
+  </component>
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true">
+    <ConfirmationsSetting value="2" id="Add" />
+  </component>
+  <component name="ProjectView">
+    <navigator currentView="Scope" currentSubView="Scope 'Project Files'; set:Project Files; class com.intellij.psi.search.scope.ProjectFilesScope" proportions="" version="1">
+      <foldersAlwaysOnTop value="true" />
+    </navigator>
+    <panes>
+      <pane id="ProjectPane">
+        <subPane>
+          <expand>
+            <path>
+              <item name="kernel" type="b2602c69:ProjectViewProjectNode" />
+              <item name="kernel" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="kernel" type="b2602c69:ProjectViewProjectNode" />
+              <item name="kernel" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="kernel" type="b2602c69:ProjectViewProjectNode" />
+              <item name="kernel" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+              <item name="arch" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="kernel" type="b2602c69:ProjectViewProjectNode" />
+              <item name="kernel" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+              <item name="drivers" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="kernel" type="b2602c69:ProjectViewProjectNode" />
+              <item name="kernel" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+              <item name="fs" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="kernel" type="b2602c69:ProjectViewProjectNode" />
+              <item name="kernel" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+              <item name="process" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="kernel" type="b2602c69:ProjectViewProjectNode" />
+              <item name="kernel" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+              <item name="sync" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="kernel" type="b2602c69:ProjectViewProjectNode" />
+              <item name="kernel" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+              <item name="syscall" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="kernel" type="b2602c69:ProjectViewProjectNode" />
+              <item name="kernel" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+              <item name="util" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="kernel" type="b2602c69:ProjectViewProjectNode" />
+              <item name="kernel" type="462c0819:PsiDirectoryNode" />
+              <item name="targets" type="462c0819:PsiDirectoryNode" />
+            </path>
+          </expand>
+          <select />
+        </subPane>
+      </pane>
+      <pane id="PackagesPane" />
+      <pane id="Scope">
+        <subPane subId="Scope 'Project Files'; set:Project Files; class com.intellij.psi.search.scope.ProjectFilesScope">
+          <expand>
+            <path>
+              <item name="kernel" type="3d21c010:ScopeViewTreeModel$ProjectNode" />
+              <item name="kernel" type="2674bda8:ScopeViewTreeModel$GroupNode" />
+            </path>
+            <path>
+              <item name="kernel" type="3d21c010:ScopeViewTreeModel$ProjectNode" />
+              <item name="kernel" type="2674bda8:ScopeViewTreeModel$GroupNode" />
+              <item name="src" type="9f88c78c:ScopeViewTreeModel$FileNode" />
+            </path>
+            <path>
+              <item name="kernel" type="3d21c010:ScopeViewTreeModel$ProjectNode" />
+              <item name="kernel" type="2674bda8:ScopeViewTreeModel$GroupNode" />
+              <item name="src" type="9f88c78c:ScopeViewTreeModel$FileNode" />
+              <item name="arch" type="9f88c78c:ScopeViewTreeModel$FileNode" />
+            </path>
+            <path>
+              <item name="kernel" type="3d21c010:ScopeViewTreeModel$ProjectNode" />
+              <item name="kernel" type="2674bda8:ScopeViewTreeModel$GroupNode" />
+              <item name="src" type="9f88c78c:ScopeViewTreeModel$FileNode" />
+              <item name="arch" type="9f88c78c:ScopeViewTreeModel$FileNode" />
+              <item name="x86_64" type="9f88c78c:ScopeViewTreeModel$FileNode" />
+            </path>
+            <path>
+              <item name="kernel" type="3d21c010:ScopeViewTreeModel$ProjectNode" />
+              <item name="kernel" type="2674bda8:ScopeViewTreeModel$GroupNode" />
+              <item name="src" type="9f88c78c:ScopeViewTreeModel$FileNode" />
+              <item name="arch" type="9f88c78c:ScopeViewTreeModel$FileNode" />
+              <item name="x86_64" type="9f88c78c:ScopeViewTreeModel$FileNode" />
+              <item name="interrupt" type="9f88c78c:ScopeViewTreeModel$FileNode" />
+            </path>
+            <path>
+              <item name="kernel" type="3d21c010:ScopeViewTreeModel$ProjectNode" />
+              <item name="kernel" type="2674bda8:ScopeViewTreeModel$GroupNode" />
+              <item name="src" type="9f88c78c:ScopeViewTreeModel$FileNode" />
+              <item name="drivers" type="9f88c78c:ScopeViewTreeModel$FileNode" />
+            </path>
+            <path>
+              <item name="kernel" type="3d21c010:ScopeViewTreeModel$ProjectNode" />
+              <item name="kernel" type="2674bda8:ScopeViewTreeModel$GroupNode" />
+              <item name="src" type="9f88c78c:ScopeViewTreeModel$FileNode" />
+              <item name="lkm" type="9f88c78c:ScopeViewTreeModel$FileNode" />
+            </path>
+            <path>
+              <item name="kernel" type="3d21c010:ScopeViewTreeModel$ProjectNode" />
+              <item name="kernel" type="2674bda8:ScopeViewTreeModel$GroupNode" />
+              <item name="src" type="9f88c78c:ScopeViewTreeModel$FileNode" />
+              <item name="process" type="9f88c78c:ScopeViewTreeModel$FileNode" />
+            </path>
+            <path>
+              <item name="kernel" type="3d21c010:ScopeViewTreeModel$ProjectNode" />
+              <item name="kernel" type="2674bda8:ScopeViewTreeModel$GroupNode" />
+              <item name="src" type="9f88c78c:ScopeViewTreeModel$FileNode" />
+              <item name="sync" type="9f88c78c:ScopeViewTreeModel$FileNode" />
+            </path>
+            <path>
+              <item name="kernel" type="3d21c010:ScopeViewTreeModel$ProjectNode" />
+              <item name="kernel" type="2674bda8:ScopeViewTreeModel$GroupNode" />
+              <item name="src" type="9f88c78c:ScopeViewTreeModel$FileNode" />
+              <item name="syscall" type="9f88c78c:ScopeViewTreeModel$FileNode" />
+            </path>
+          </expand>
+          <select />
+        </subPane>
+      </pane>
+    </panes>
+  </component>
+  <component name="PropertiesComponent">
+    <property name="com.android.tools.idea.instantapp.provision.ProvisionBeforeRunTaskProvider.myTimeStamp" value="1554986843636" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="org.rust.cargo.project.model.PROJECT_DISCOVERY" value="true" />
+  </component>
+  <component name="RunDashboard">
+    <option name="ruleStates">
+      <list>
+        <RuleState>
+          <option name="name" value="ConfigurationTypeDashboardGroupingRule" />
+        </RuleState>
+        <RuleState>
+          <option name="name" value="StatusDashboardGroupingRule" />
+        </RuleState>
+      </list>
+    </option>
+  </component>
+  <component name="SvnConfiguration">
+    <configuration />
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="f6e1a918-0bdf-413b-8660-07d93157d70a" name="Default Changelist" comment="" />
+      <created>1553527695147</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1553527695147</updated>
+    </task>
+    <servers />
+  </component>
+  <component name="ToolWindowManager">
+    <frame x="0" y="23" width="1620" height="1017" extended-state="0" />
+    <editor active="true" />
+    <layout>
+      <window_info id="Designer" order="0" />
+      <window_info id="UI Designer" order="1" />
+      <window_info id="Capture Tool" order="2" />
+      <window_info id="Favorites" order="3" side_tool="true" />
+      <window_info id="Image Layers" order="4" />
+      <window_info active="true" content_ui="combo" id="Project" order="5" visible="true" weight="0.12991127" />
+      <window_info id="Structure" order="6" side_tool="true" weight="0.25" />
+      <window_info anchor="bottom" id="Event Log" order="0" side_tool="true" />
+      <window_info anchor="bottom" id="Version Control" order="1" weight="0.32937366" />
+      <window_info anchor="bottom" id="Message" order="2" />
+      <window_info anchor="bottom" id="Find" order="3" />
+      <window_info anchor="bottom" id="Run" order="4" />
+      <window_info anchor="bottom" id="Debug" order="5" weight="0.4" />
+      <window_info anchor="bottom" id="Cvs" order="6" weight="0.25" />
+      <window_info anchor="bottom" id="Inspection" order="7" weight="0.4" />
+      <window_info anchor="bottom" id="TODO" order="8" />
+      <window_info anchor="bottom" id="Terminal" order="9" visible="true" weight="0.27213824" />
+      <window_info anchor="right" id="Theme Preview" order="0" />
+      <window_info anchor="right" id="Capture Analysis" order="1" />
+      <window_info anchor="right" id="Cargo" order="2" />
+      <window_info anchor="right" id="Palette&#9;" order="3" />
+      <window_info anchor="right" id="Maven" order="4" />
+      <window_info anchor="right" id="Palette" order="5" />
+      <window_info anchor="right" id="Commander" internal_type="SLIDING" order="6" type="SLIDING" weight="0.4" />
+      <window_info anchor="right" id="Ant Build" order="7" weight="0.25" />
+      <window_info anchor="right" content_ui="combo" id="Hierarchy" order="8" weight="0.25" />
+    </layout>
+  </component>
+  <component name="editorHistoryManager">
+    <entry file="file://$USER_HOME$/.rustup/toolchains/nightly-2019-02-16-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/src/liballoc/vec.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="216">
+          <caret line="292" column="11" selection-start-line="292" selection-start-column="11" selection-end-line="292" selection-end-column="11" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../crate/thread/src/processor.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="195">
+          <caret line="22" column="29" lean-forward="true" selection-start-line="22" selection-start-column="29" selection-end-line="22" selection-end-column="29" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/.rustup/toolchains/nightly-2019-02-16-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/src/libcore/slice/mod.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="299">
+          <caret line="3124" column="11" selection-start-line="3124" selection-start-column="11" selection-end-line="3124" selection-end-column="11" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/.rustup/toolchains/nightly-2019-02-16-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/src/libcore/iter/traits/iterator.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="216">
+          <caret line="1463" column="7" selection-start-line="1463" selection-start-column="7" selection-end-line="1463" selection-end-column="7" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/.cargo/registry/src/github.com-1ecc6299db9ec823/x86_64-0.4.2/src/structures/gdt.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="891">
+          <caret line="85" column="11" selection-start-line="85" selection-start-column="11" selection-end-line="85" selection-end-column="11" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/.cargo/registry/src/github.com-1ecc6299db9ec823/x86_64-0.4.2/src/structures/paging/recursive.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="314">
+          <caret line="29" column="10" selection-start-line="29" selection-start-column="10" selection-end-line="29" selection-end-column="10" />
+          <folding>
+            <element signature="e#1086#1087#0" expanded="true" />
+            <element signature="e#1136#1137#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/arch/x86_64/paging.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="259">
+          <caret line="53" column="21" selection-start-line="53" selection-start-column="21" selection-end-line="53" selection-end-column="21" />
+          <folding>
+            <element signature="e#6708#6709#0" expanded="true" />
+            <element signature="e#6740#6741#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/.cargo/registry/src/github.com-1ecc6299db9ec823/x86_64-0.4.2/src/instructions/tlb.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="75">
+          <caret line="5" column="25" selection-start-line="5" selection-start-column="25" selection-end-line="5" selection-end-column="25" />
+          <folding>
+            <element signature="e#191#192#0" expanded="true" />
+            <element signature="e#263#264#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/arch/x86_64/interrupt/trapframe.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-2598" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/arch/x86_64/idt.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="405">
+          <caret line="29" column="46" lean-forward="true" selection-start-line="29" selection-start-column="46" selection-end-line="29" selection-end-column="46" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/.cargo/registry/src/github.com-1ecc6299db9ec823/x86_64-0.4.2/src/addr.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-234">
+          <caret line="16" column="95" lean-forward="true" selection-start-line="16" selection-start-column="95" selection-end-line="16" selection-end-column="95" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/lkm/vmem_rbtree.rs" />
+    <entry file="file://$USER_HOME$/.cargo/registry/src/github.com-1ecc6299db9ec823/buddy_system_allocator-0.1.2/src/linked_list.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="180">
+          <caret line="12" column="11" selection-start-line="12" selection-start-column="11" selection-end-line="12" selection-end-column="11" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/arch/x86_64/interrupt/fast_syscall.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state>
+          <caret column="25" selection-start-column="25" selection-end-column="25" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/arch/x86_64/interrupt/consts.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="300">
+          <caret line="20" column="32" selection-start-line="20" selection-start-column="32" selection-end-line="20" selection-end-column="32" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/.cargo/registry/src/github.com-1ecc6299db9ec823/buddy_system_allocator-0.1.2/src/lib.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="381">
+          <caret line="94" lean-forward="true" selection-start-line="94" selection-end-line="94" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/lkm/mod.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state>
+          <caret column="1" selection-start-column="1" selection-end-column="1" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/process/structs.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="216">
+          <caret line="30" column="9" selection-start-line="30" selection-start-column="9" selection-end-line="30" selection-end-column="9" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/.cargo/git/checkouts/rcore-fs-7fdf258332f6146d/c932271/rcore-fs/src/vfs.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="75">
+          <caret line="8" column="7" selection-start-line="8" selection-start-column="7" selection-end-line="8" selection-end-column="7" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/fs/stdio.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-753" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/fs/file.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="705">
+          <caret line="47" column="32" selection-start-line="47" selection-start-column="32" selection-end-line="47" selection-end-column="32" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/fs/device.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="117">
+          <caret line="10" column="13" lean-forward="true" selection-start-line="10" selection-start-column="13" selection-end-line="10" selection-end-column="13" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/arch/x86_64/driver/ide.rs">
+      <provider selected="true" editor-type-id="text-editor" />
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/arch/aarch64/driver/console/fonts/font8x16.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-1125">
+          <caret line="18" column="22" lean-forward="true" selection-start-line="18" selection-start-column="22" selection-end-line="18" selection-end-column="22" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../crate/memory/src/memory_set/mod.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="3240">
+          <caret line="220" column="7" selection-start-line="220" selection-start-column="7" selection-end-line="220" selection-end-column="7" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/fs/mod.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="570">
+          <caret line="38" column="13" selection-start-line="38" selection-start-column="13" selection-end-line="38" selection-end-column="13" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/syscall/custom.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="705">
+          <caret line="49" column="32" selection-start-line="49" selection-start-column="32" selection-end-line="49" selection-end-column="32" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/syscall/mem.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="525">
+          <caret line="35" column="23" selection-start-line="35" selection-start-column="23" selection-end-line="35" selection-end-column="23" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/syscall/fs.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="597">
+          <caret line="343" column="1" selection-start-line="343" selection-start-column="1" selection-end-line="343" selection-end-column="1" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/lkm/api.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="75">
+          <caret line="12" column="26" lean-forward="true" selection-start-line="12" selection-start-column="26" selection-end-line="12" selection-end-column="26" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/lkm/loader.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="597">
+          <caret line="48" selection-start-line="48" selection-end-line="48" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/lkm/list_manager.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-586">
+          <caret line="17" column="1" lean-forward="true" selection-start-line="17" selection-start-column="1" selection-end-line="17" selection-end-column="1" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/lkm/structs.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-135">
+          <caret line="15" column="21" lean-forward="true" selection-start-line="15" selection-start-column="21" selection-end-line="15" selection-end-column="21" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/lkm/manager.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-416">
+          <caret line="423" column="33" selection-start-line="423" selection-start-column="33" selection-end-line="423" selection-end-column="33" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/arch/x86_64/interrupt/mod.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="225">
+          <caret line="26" lean-forward="true" selection-start-line="26" selection-end-line="26" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/arch/x86_64/interrupt/trap.asm">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="606">
+          <caret line="48" column="16" lean-forward="true" selection-start-line="48" selection-start-column="16" selection-end-line="48" selection-end-column="16" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/consts.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="75">
+          <caret line="5" column="10" selection-start-line="5" selection-start-column="10" selection-end-line="5" selection-end-column="10" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/arch/x86_64/cpu.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="255">
+          <caret line="24" column="19" selection-start-line="24" selection-start-column="19" selection-end-line="24" selection-end-column="19" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/arch/x86_64/interrupt/handler.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="417">
+          <caret line="101" column="35" selection-start-line="101" selection-start-column="35" selection-end-line="101" selection-end-column="35" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/sync/mutex.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="285">
+          <caret line="67" column="54" selection-start-line="67" selection-start-column="54" selection-end-line="67" selection-end-column="54" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../crate/thread/src/std_thread.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1473">
+          <caret line="112" column="28" selection-start-line="112" selection-start-column="28" selection-end-line="112" selection-end-column="28" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/process/mod.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="210">
+          <caret line="14" column="34" selection-start-line="14" selection-start-column="34" selection-end-line="14" selection-end-column="34" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../crate/thread/src/thread_pool.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="339">
+          <caret line="193" column="16" selection-start-line="193" selection-start-column="16" selection-end-line="193" selection-end-column="16" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/sync/semaphore.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="195">
+          <caret line="34" column="7" selection-start-line="34" selection-start-column="7" selection-end-line="34" selection-end-column="7" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/arch/x86_64/ipi.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="435">
+          <caret line="71" column="26" selection-start-line="71" selection-start-column="26" selection-end-line="71" selection-end-column="26" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/lkm/kernelvm.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="299">
+          <caret line="215" column="43" lean-forward="true" selection-start-line="215" selection-start-column="43" selection-end-line="215" selection-end-column="43" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/sync/condvar.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="435">
+          <caret line="53" column="20" lean-forward="true" selection-start-line="53" selection-start-column="20" selection-end-line="53" selection-end-column="20" />
+          <folding>
+            <element signature="e#256#257#0" expanded="true" />
+            <element signature="e#289#290#0" expanded="true" />
+            <element signature="e#2323#2324#0" expanded="true" />
+            <element signature="e#2369#2370#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/lib.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="540">
+          <caret line="36" column="8" selection-start-line="36" selection-start-column="8" selection-end-line="36" selection-end-column="8" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/syscall/mod.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="225">
+          <caret line="76" column="24" lean-forward="true" selection-start-line="76" selection-start-column="24" selection-end-line="76" selection-end-column="24" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/arch/x86_64/mod.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-273">
+          <caret line="13" column="13" selection-start-line="13" selection-start-column="13" selection-end-line="13" selection-end-column="13" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/arch/x86_64/gdt.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="150">
+          <caret line="10" column="20" selection-start-line="10" selection-start-column="20" selection-end-line="10" selection-end-column="20" />
+          <folding>
+            <element signature="e#1960#1961#0" expanded="true" />
+            <element signature="e#1982#1983#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+  </component>
+</project>

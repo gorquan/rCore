@@ -2,6 +2,12 @@
 #   make build                  Build
 #   make run                    Build and run in QEMU
 #   make justrun                Run the last build
+#   make runnet                 Build and run in QEMU with nic
+#   make justrunnet             Run the last build with nic
+#   make runui                  Build and run in QEMU with gui
+#   make justrunui              Run the last build with gui
+#   make runtest                Build and run in QEMU with specified program
+#   make justruntest            Run the last build with specified program
 #   make doc                    Generate docs
 #   make asm                    Open the deassemble file of the last build
 #   make header                 Open 'objdump -h' of the last build
@@ -9,7 +15,7 @@
 #   make clean                  Clean
 #
 # Options:
-#   arch    = x86_64 | riscv32 | riscv64 | aarch64
+#   arch    = x86_64 | riscv32 | riscv64 | aarch64 | mipsel
 #   d    = int | in_asm | ...   QEMU debug info
 #   mode = debug | release
 #   LOG  = off | error | warn | info | debug | trace
@@ -17,10 +23,11 @@
 #   smp     = 1 | 2 | ...           SMP core number
 #   graphic = on | off              enable/disable qemu graphical output
 #   board   = none                Running on QEMU
-#         | k210                Only available on riscv64, build without bbl, run on K210
 #         | u540                Only available on riscv64, run on HiFive U540, use Sv39
 #         | raspi3              Only available on aarch64, run on Raspberry Pi 3 Model B/B+
-#   m_mode                      Only available on riscv32, build for M-Mode, without MMU
+#   pci_passthru = 0000:00:00.1 Only available on x86_64, passthrough the specified PCI device
+#   init = /bin/ls              Only available on riscv64, run specified program instead of user shell
+#   extra_nic = on | off         Only available on x86_64, add an additional e1000 nic
 
 arch ?= riscv64
 board ?= none
@@ -28,7 +35,9 @@ mode ?= debug
 LOG  ?= debug
 graphic ?= off
 smp  ?= 4
-m_mode ?=
+pci_passthru ?=
+init ?=
+extra_nic ?= off
 
 target := $(arch)
 build_path := target/$(target)/$(mode)
@@ -39,25 +48,37 @@ bootloader_dir = ../bootloader
 bootloader := $(bootloader_dir)/target/$(target)/$(mode)/rcore-bootloader
 bbl_path := $(PWD)/../riscv-pk
 user_dir := ../user
-k210_lib := ../tools/k210/libkendryte.a
+
 
 ### export environments ###
+
+ifeq ($(arch), $(filter $(arch), aarch64 mipsel))
+#link user img, so use original image
+export SFSIMG = $(user_dir)/build/$(arch).img
+else
+export SFSIMG = $(user_dir)/build/$(arch).qcow2
+endif
+
+ifeq ($(arch), aarch64)
+board := raspi3
+need_bootloader := true
+endif
+
+# currently only mipsel architecture needs DTB linked to the kernel
+ifeq ($(arch), mipsel)
+dtb := src/arch/$(arch)/board/$(board)/device.dtb
+endif
+
+# mipssim does not support SMP
+ifeq ($(board), mipssim)
+smp := 1
+endif
+
 export ARCH = $(arch)
 export BOARD = $(board)
 export SMP = $(smp)
-export SFSIMG = $(user_dir)/build/$(arch).img
-ifeq ($(arch), aarch64)
-board := raspi3
-endif
-ifeq ($(board), k210)
-m_mode := 1
-endif
-# crate 'process' use this to set interrupt (MIE or SIE)
-export M_MODE = $(m_mode)
+export DTB = $(dtb)
 
-ifeq ($(arch), aarch64)
-graphic := on
-endif
 
 ### qemu options ###
 qemu_opts := \
@@ -68,43 +89,64 @@ qemu_net_opts := \
 ifeq ($(arch), x86_64)
 qemu_opts += \
 	-drive format=raw,file=$(bootimage) \
-	-drive format=raw,file=$(SFSIMG),media=disk,cache=writeback \
+	-drive format=qcow2,file=$(SFSIMG),media=disk,cache=writeback,id=sfsimg,if=none \
+	-device ahci,id=ahci0 \
+	-device ide-drive,drive=sfsimg,bus=ahci0.0 \
 	-serial mon:stdio \
+	-m 4G \
 	-device isa-debug-exit
+ifeq ($(pci_passthru), )
 qemu_net_opts += \
 	-device e1000e,netdev=net0
+else
+qemu_opts += \
+	-machine accel=kvm
+qemu_net_opts += \
+	-device vfio-pci,host=$(pci_passthru)
+endif
+ifeq ($(extra_nic), on)
+qemu_net_opts += \
+	-netdev type=tap,id=net1,script=no,downscript=no \
+	-device e1000e,netdev=net1
+endif
 
 else ifeq ($(arch), riscv32)
 qemu_opts += \
 	-machine virt \
 	-kernel $(kernel_img) \
-	-drive file=$(SFSIMG),format=raw,id=sfs \
+	-drive file=$(SFSIMG),format=qcow2,id=sfs \
 	-device virtio-blk-device,drive=sfs
 qemu_net_opts += \
 	-device virtio-net-device,netdev=net0
-
-ifdef m_mode
-qemu_opts += -cpu rv32imacu-nommu
-endif
 
 else ifeq ($(arch), riscv64)
 qemu_opts += \
 	-machine virt \
 	-kernel $(kernel_img) \
-	-drive file=$(SFSIMG),format=raw,id=sfs \
+	-drive file=$(SFSIMG),format=qcow2,id=sfs \
 	-device virtio-blk-device,drive=sfs
 qemu_net_opts += \
 	-device virtio-net-device,netdev=net0
-
-ifdef m_mode
-qemu_opts += -cpu rv64imacu-nommu
-endif
 
 else ifeq ($(arch), aarch64)
 qemu_opts += \
 	-machine $(board) \
 	-serial null -serial mon:stdio \
 	-kernel $(kernel_img)
+
+else ifeq ($(arch), mipsel)
+ifeq ($(board), malta)
+qemu_opts += \
+	-machine $(board) -device VGA \
+	-serial null -serial null -serial mon:stdio \
+	-kernel $(kernel_img)
+endif
+ifeq ($(board), mipssim)
+qemu_opts += \
+	-machine $(board) \
+	-serial mon:stdio \
+	-kernel $(kernel_img)
+endif
 endif
 
 ifdef d
@@ -120,6 +162,10 @@ ifneq ($(graphic), on)
 features += nographic
 endif
 
+ifneq ($(init), )
+features += run_cmdline
+endif
+
 ifeq ($(board), raspi3)
 # qemu only has generic timer
 # TODO: configure system/generic timer automatically
@@ -127,11 +173,6 @@ raspi3_timer ?= generic
 ifeq ($(raspi3_timer), generic)
 features += raspi3_use_generic_timer
 endif
-endif
-
-ifdef m_mode
-features += no_mmu m_mode
-riscv_pk_args := --enable-boot-machine
 endif
 
 ifeq ($(board), u540)
@@ -159,6 +200,8 @@ else ifeq ($(arch), riscv32)
 prefix := riscv64-unknown-elf-
 else ifeq ($(arch), riscv64)
 prefix := riscv64-unknown-elf-
+else ifeq ($(arch), mipsel)
+prefix ?= mipsel-linux-musln32-
 else ifeq ($(arch), aarch64)
 prefix ?= aarch64-none-elf-
 ifeq (,$(shell which $(prefix)ld))
@@ -173,9 +216,12 @@ cc := $(prefix)gcc
 as := $(prefix)as
 gdb := $(prefix)gdb
 strip := $(prefix)strip
+dtc := dtc
 export CC = $(cc)
 
-.PHONY: all clean run build asm doc justrun debug kernel sfsimg install runnet
+hostcc := gcc
+
+.PHONY: all clean build asm doc debug kernel sfsimg install run justrun runnet justrunnet runui justrunui runtest justruntest
 
 all: kernel
 
@@ -190,6 +236,7 @@ doc:
 run: build justrun
 runnet: build justrunnet
 runui: build justrunui
+runtest: build justruntest
 
 justrun:
 	@qemu-system-$(arch) $(qemu_opts)
@@ -201,6 +248,9 @@ justrunui: build
 	@qemu-system-$(arch) $(qemu_opts) \
 		-device virtio-gpu-device \
 		-device virtio-mouse-device
+
+justruntest: build
+	@qemu-system-$(arch) $(qemu_opts) --append $(init) -serial file:../tests/stdout -monitor null
 
 debug: $(kernel) $(kernel_img)
 	@qemu-system-$(arch) $(qemu_opts) -s -S &
@@ -218,8 +268,17 @@ header:
 sym:
 	@$(objdump) -t $(kernel) | less
 
+### device tree process ###
+
+%.dtb: %.dts
+	@echo Generating device tree file $@
+	@$(dtc) -I dts -O dtb -o $@ $<
+	@rm -rf src/arch/${arch}/boot/dtb.gen.s
+
+### bootloader and kernel image ###
+
 $(bootloader): $(kernel)
-ifeq ($(arch), aarch64)
+ifeq ($(need_bootloader), true)
 	@echo Building $(arch) bootloader
 	@$(strip) $(kernel) -o $(kernel)_stripped
 	@cd $(bootloader_dir) && make arch=$(arch) mode=$(mode) payload=../kernel/$(kernel)_stripped
@@ -239,9 +298,6 @@ ifeq ($(arch), riscv32)
 	make -j && \
 	cp bbl $(abspath $@)
 else ifeq ($(arch), riscv64)
-ifeq ($(board), k210)
-	@$(objcopy) $(kernel) --strip-all -O binary $@
-else
 	@mkdir -p target/$(target)/bbl && \
 	cd target/$(target)/bbl && \
 	$(bbl_path)/configure \
@@ -252,12 +308,14 @@ else
 		--with-payload=$(abspath $(kernel)) && \
 	make -j && \
 	cp bbl $(abspath $@)
-endif
 else ifeq ($(arch), aarch64)
 	@$(objcopy) $(bootloader) --strip-all -O binary $@
+else ifeq ($(arch), mipsel)
+# qemu-system-mipsel accepts ELF file only, so objcopy is not needed
+	@$(strip) $(kernel) -o $@
 endif
 
-kernel:
+kernel: $(dtb)
 	@echo Building $(arch) kernel
 ifeq ($(arch), x86_64)
 	@bootimage build $(build_args)
@@ -268,17 +326,17 @@ else ifeq ($(arch), riscv32)
 		src/arch/riscv32/atomic.patch
 	@cargo xbuild $(build_args)
 else ifeq ($(arch), riscv64)
-ifeq ($(board), k210)
-	@[[ -f $(k210_lib) ]] || wget https://github.com/wangrunji0408/RustOS/releases/download/v0.1/libkendryte.a -O $(k210_lib)
-	@cp src/arch/riscv32/board/k210/linker.ld src/arch/riscv32/boot/linker64.ld
-else
 	@cp src/arch/riscv32/board/u540/linker.ld src/arch/riscv32/boot/linker64.ld
-endif
 	@-patch -p0 -N -b \
 		$(shell rustc --print sysroot)/lib/rustlib/src/rust/src/libcore/sync/atomic.rs \
 		src/arch/riscv32/atomic.patch
 	@cargo xbuild $(build_args)
 else ifeq ($(arch), aarch64)
+	@cargo xbuild $(build_args)
+else ifeq ($(arch), mipsel)
+	@for file in context entry trap ; do \
+	    $(hostcc) -E src/arch/$(arch)/boot/$${file}.S -o src/arch/$(arch)/boot/$${file}.gen.s ; \
+	done
 	@cargo xbuild $(build_args)
 endif
 
@@ -307,13 +365,6 @@ endif
 
 endif
 
-ifeq ($(board), k210)
-.PHONY:
-install: $(kernel_img)
-	## baudrate no more than 600000
-	@python3 ../tools/k210/kflash.py $(kernel_img) -b 600000
-endif
-
 ifeq ($(board), u540)
 .PHONY:
 install: $(kernel_img)
@@ -323,4 +374,4 @@ endif
 
 .PHONY:
 addr2line:
-	@python3 ../tools/addr2line.py $(prefix)addr2line $(arch)
+	@python3 ../tools/addr2line.py $(prefix)addr2line $(arch) $(mode)

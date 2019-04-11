@@ -1,6 +1,6 @@
 # rCore
 
-[![Build Status](https://travis-ci.org/oscourse-tsinghua/rcore_plus.svg?branch=master)](https://travis-ci.org/oscourse-tsinghua/rcore_plus)
+[![Build Status](https://travis-ci.org/rcore-os/rCore.svg?branch=master)](https://travis-ci.org/rcore-os/rCore)
 
 Rust version of THU [uCore OS Plus](https://github.com/chyyuu/ucore_os_plus).
 
@@ -24,7 +24,7 @@ Tested boards: QEMU, HiFive Unleashed, x86_64 PC (i5/i7), Raspberry Pi 3B+
 * [bootimage](https://github.com/rust-osdev/bootimage) (for x86_64)
 * [RISCV64 GNU toolchain](https://www.sifive.com/boards) (for riscv32/64)
 * [AArch64 GNU toolchain](https://cs140e.sergio.bz/assignments/0-blinky/) (for aarch64)
-* [musl-cross-make](https://github.com/richfelker/musl-cross-make) (for userland musl)
+* [musl-cross-make](https://github.com/richfelker/musl-cross-make) (for userland musl, or download prebuilt toolchain from [musl.cc](https://musl.cc/))
 * [libfuse-dev](https://github.com/libfuse/libfuse) (for userland image generation)
 
 See [Travis script](./.travis.yml) for details.
@@ -42,6 +42,7 @@ $ cd rCore/user
 $ make sfsimg arch={riscv32,riscv64,x86_64,aarch64} # requires x86_64-linux-musl-gcc or musl-gcc
 $ cd ../kernel
 $ make run arch={riscv32,riscv64,x86_64,aarch64} mode=release
+$ make run arch=x86_64 mode=release pci_passthru=0000:00:00.1 # for ixgbe real nic, find its pci (bus, dev, func) first
 ```
 
 ## History

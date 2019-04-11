@@ -16,30 +16,32 @@ extern crate log;
 #[macro_use]
 extern crate lazy_static;
 
-pub use crate::process::{processor, new_kernel_context};
-use rcore_thread::std_thread as thread;
+pub use crate::process::{new_kernel_context, processor};
 use buddy_system_allocator::LockedHeap;
+use rcore_thread::std_thread as thread;
 
-#[macro_use]    // print!
+#[macro_use] // print!
 mod logging;
-mod memory;
-mod lang;
-mod util;
-mod consts;
-mod process;
-mod syscall;
-mod fs;
-mod sync;
-mod trap;
-mod shell;
-mod drivers;
-mod net;
-mod lkm;
 mod backtrace;
-
+mod consts;
+mod drivers;
+mod fs;
+mod lang;
+mod memory;
+mod net;
+mod process;
+mod shell;
+mod sync;
+mod syscall;
+mod trap;
+mod lkm;
 #[allow(dead_code)]
 #[cfg(target_arch = "x86_64")]
 #[path = "arch/x86_64/mod.rs"]
+pub mod arch;
+
+#[cfg(target_arch = "mips")]
+#[path = "arch/mipsel/mod.rs"]
 pub mod arch;
 
 #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
