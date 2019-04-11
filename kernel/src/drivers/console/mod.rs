@@ -10,7 +10,7 @@ use spin::Mutex;
 
 use crate::util::escape_parser::{CharacterAttribute, EscapeParser};
 
-use super::fb::{ColorDepth::*, FRAME_BUFFER, FramebufferInfo};
+use super::fb::{ColorConfig, ColorDepth::*, FramebufferInfo, FRAME_BUFFER};
 
 use self::color::FramebufferColor;
 use self::fonts::{Font, Font8x16};
@@ -62,16 +62,10 @@ impl<F: Font> ConsoleBuffer<F> {
         let off_x = col * F::WIDTH;
         let off_y = row * F::HEIGHT;
         if let Some(fb) = FRAME_BUFFER.lock().as_mut() {
-            let (mut foreground, mut background) = match fb.color_depth {
-                ColorDepth16 => (
-                    ch.attr.foreground.pack16() as u32,
-                    ch.attr.background.pack16() as u32,
-                ),
-                ColorDepth32 => (
-                    ch.attr.foreground.pack32(),
-                    ch.attr.background.pack32(),
-                ),
-            };
+            let (mut foreground, mut background) = (
+                ch.attr.foreground.pack32(fb.color_config),
+                ch.attr.background.pack32(fb.color_config),
+            );
             if ch.attr.reverse {
                 core::mem::swap(&mut foreground, &mut background);
             }
@@ -87,7 +81,10 @@ impl<F: Font> ConsoleBuffer<F> {
             };
             for y in 0..F::HEIGHT {
                 for x in 0..F::WIDTH {
-                    let pixel = if y == underline_y || y == strikethrough_y || F::get(ch.ascii_char, x, y) {
+                    let pixel = if y == underline_y
+                        || y == strikethrough_y
+                        || F::get(ch.ascii_char, x, y)
+                    {
                         foreground
                     } else {
                         background

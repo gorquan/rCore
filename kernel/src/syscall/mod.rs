@@ -1,38 +1,44 @@
 //! System call
 
 use alloc::{string::String, sync::Arc, vec::Vec};
-use core::{slice, str, fmt};
+use core::{fmt, slice, str};
 
 use bitflags::bitflags;
-use rcore_memory::VMError;
 use rcore_fs::vfs::{FileType, FsError, INode, Metadata};
+use rcore_memory::VMError;
 
+use crate::arch::cpu;
 use crate::arch::interrupt::TrapFrame;
-use crate::sync::Condvar;
+use crate::arch::syscall::*;
 use crate::process::*;
+use crate::sync::Condvar;
 use crate::thread;
 use crate::util;
-use crate::arch::cpu;
-use crate::arch::syscall::*;
 
+use self::custom::*;
 use self::fs::*;
 use self::mem::*;
+use self::misc::*;
+use self::net::*;
 use self::proc::*;
 use self::time::*;
+<<<<<<< HEAD
 use self::net::*;
 use self::misc::*;
 use self::custom::*;
 use crate::lkm::manager::{sys_init_module, sys_delete_module};
 
 //use crate::backtrace::lr;
+=======
+>>>>>>> 75ba0859cff973cf63d38d24e267c03924435c5a
 
+mod custom;
 mod fs;
 mod mem;
+mod misc;
+mod net;
 mod proc;
 mod time;
-mod net;
-mod misc;
-mod custom;
 
 #[inline(always)]
 pub fn lr() -> usize {
@@ -58,16 +64,14 @@ pub fn lr() -> usize {
 #[deny(unreachable_patterns)]
 pub fn syscall(id: usize, args: [usize; 6], tf: &mut TrapFrame) -> isize {
     let cid = cpu::id();
-    let pid = {
-        process().pid.clone()
-    };
+    let pid = { process().pid.clone() };
     let tid = processor().tid();
     if !pid.is_init() {
         // we trust pid 0 process
         debug!("{}:{}:{} syscall id {} begin", cid, pid, tid, id);
     }
-    //warn!("{}:{}:{} syscall id {} begin", cid, pid, tid, id);
-    // use syscall numbers in Linux x86_64
+    
+    // use platform-specific syscal numbers
     // See https://filippo.io/linux-syscall-table/
     // And https://fedora.juszkiewicz.com.pl/syscalls.html.
     let ret = match id {
@@ -118,10 +122,24 @@ pub fn syscall(id: usize, args: [usize; 6], tf: &mut TrapFrame) -> isize {
         SYS_SOCKET => sys_socket(args[0], args[1], args[2]),
         SYS_CONNECT => sys_connect(args[0], args[1] as *const SockAddr, args[2]),
         SYS_ACCEPT => sys_accept(args[0], args[1] as *mut SockAddr, args[2] as *mut u32),
-        SYS_SENDTO => sys_sendto(args[0], args[1] as *const u8, args[2], args[3], args[4] as *const SockAddr, args[5]),
-        SYS_RECVFROM => sys_recvfrom(args[0], args[1] as *mut u8, args[2], args[3], args[4] as *mut SockAddr, args[5] as *mut u32),
-//        SYS_SENDMSG => sys_sendmsg(),
-//        SYS_RECVMSG => sys_recvmsg(),
+        SYS_SENDTO => sys_sendto(
+            args[0],
+            args[1] as *const u8,
+            args[2],
+            args[3],
+            args[4] as *const SockAddr,
+            args[5],
+        ),
+        SYS_RECVFROM => sys_recvfrom(
+            args[0],
+            args[1] as *mut u8,
+            args[2],
+            args[3],
+            args[4] as *mut SockAddr,
+            args[5] as *mut u32,
+        ),
+        //        SYS_SENDMSG => sys_sendmsg(),
+        //        SYS_RECVMSG => sys_recvmsg(),
         SYS_SHUTDOWN => sys_shutdown(args[0], args[1]),
         SYS_BIND => sys_bind(args[0], args[1] as *const SockAddr, args[2]),
         // 50
@@ -129,9 +147,27 @@ pub fn syscall(id: usize, args: [usize; 6], tf: &mut TrapFrame) -> isize {
         SYS_GETSOCKNAME => sys_getsockname(args[0], args[1] as *mut SockAddr, args[2] as *mut u32),
         SYS_GETPEERNAME => sys_getpeername(args[0], args[1] as *mut SockAddr, args[2] as *mut u32),
         SYS_SETSOCKOPT => sys_setsockopt(args[0], args[1], args[2], args[3] as *const u8, args[4]),
-        SYS_GETSOCKOPT => sys_getsockopt(args[0], args[1], args[2], args[3] as *mut u8, args[4] as *mut u32),
-        SYS_CLONE => sys_clone(args[0], args[1], args[2] as *mut u32, args[3] as *mut u32, args[4], tf),
-        SYS_EXECVE => sys_exec(args[0] as *const u8, args[1] as *const *const u8, args[2] as *const *const u8, tf),
+        SYS_GETSOCKOPT => sys_getsockopt(
+            args[0],
+            args[1],
+            args[2],
+            args[3] as *mut u8,
+            args[4] as *mut u32,
+        ),
+        SYS_CLONE => sys_clone(
+            args[0],
+            args[1],
+            args[2] as *mut u32,
+            args[3] as *mut u32,
+            args[4],
+            tf,
+        ),
+        SYS_EXECVE => sys_exec(
+            args[0] as *const u8,
+            args[1] as *const *const u8,
+            args[2] as *const *const u8,
+            tf,
+        ),
         // 60
         SYS_EXIT => sys_exit(args[0] as usize),
         SYS_WAIT4 => sys_wait4(args[0] as isize, args[1] as *mut i32), // TODO: wait4
@@ -152,12 +188,20 @@ pub fn syscall(id: usize, args: [usize; 6], tf: &mut TrapFrame) -> isize {
         SYS_GETCWD => sys_getcwd(args[0] as *mut u8, args[1]),
         // 80
         SYS_CHDIR => sys_chdir(args[0] as *const u8),
-        SYS_GETTIMEOFDAY => sys_gettimeofday(args[0] as *mut TimeVal, args[1] as *const u8),
+        SYS_FCHMOD => {
+            warn!("sys_fchmod is unimplemented");
+            Ok(0)
+        }
+        SYS_FCHOWN => {
+            warn!("sys_fchown is unimplemented");
+            Ok(0)
+        }
         SYS_UMASK => {
             warn!("sys_umask is unimplemented");
             Ok(0o777)
         }
-//        SYS_GETRLIMIT => sys_getrlimit(),
+        SYS_GETTIMEOFDAY => sys_gettimeofday(args[0] as *mut TimeVal, args[1] as *const u8),
+        //        SYS_GETRLIMIT => sys_getrlimit(),
         SYS_GETRUSAGE => sys_getrusage(args[0], args[1] as *mut RUsage),
         SYS_SYSINFO => sys_sysinfo(args[0] as *mut SysInfo),
         SYS_GETUID => {
@@ -199,7 +243,7 @@ pub fn syscall(id: usize, args: [usize; 6], tf: &mut TrapFrame) -> isize {
             Err(SysError::EACCES)
         }
         SYS_SETPRIORITY => sys_set_priority(args[0]),
-//        SYS_SETRLIMIT => sys_setrlimit(),
+        //        SYS_SETRLIMIT => sys_setrlimit(),
         SYS_SYNC => sys_sync(),
         SYS_MOUNT => {
             warn!("mount is unimplemented");
@@ -209,9 +253,19 @@ pub fn syscall(id: usize, args: [usize; 6], tf: &mut TrapFrame) -> isize {
             warn!("umount2 is unimplemented");
             Err(SysError::EACCES)
         }
-        SYS_REBOOT => sys_reboot(args[0] as u32, args[1] as u32, args[2] as u32, args[3] as *const u8),
+        SYS_REBOOT => sys_reboot(
+            args[0] as u32,
+            args[1] as u32,
+            args[2] as u32,
+            args[3] as *const u8,
+        ),
         SYS_GETTID => sys_gettid(),
-        SYS_FUTEX => sys_futex(args[0], args[1] as u32, args[2] as i32, args[3] as *const TimeSpec),
+        SYS_FUTEX => sys_futex(
+            args[0],
+            args[1] as u32,
+            args[2] as i32,
+            args[3] as *const TimeSpec,
+        ),
         SYS_SCHED_GETAFFINITY => sys_sched_getaffinity(args[0], args[1], args[2] as *mut u32),
         SYS_GETDENTS64 => sys_getdents64(args[0], args[1] as *mut LinuxDirent64, args[2]),
         SYS_SET_TID_ADDRESS => {
@@ -220,13 +274,19 @@ pub fn syscall(id: usize, args: [usize; 6], tf: &mut TrapFrame) -> isize {
         }
         SYS_CLOCK_GETTIME => sys_clock_gettime(args[0], args[1] as *mut TimeSpec),
         SYS_EXIT_GROUP => sys_exit_group(args[0]),
-        SYS_OPENAT => sys_open(args[1] as *const u8, args[2], args[3]), // TODO: handle `dfd`
+        SYS_OPENAT => sys_openat(args[0], args[1] as *const u8, args[2], args[3]), // TODO: handle `dfd`
         SYS_MKDIRAT => sys_mkdir(args[1] as *const u8, args[2]), // TODO: handle `dfd`
-//        SYS_MKNODAT => sys_mknod(),
+        //        SYS_MKNODAT => sys_mknod(),
+        // 260
+        SYS_FCHOWNAT => {
+            warn!("sys_fchownat is unimplemented");
+            Ok(0)
+        }
         SYS_NEWFSTATAT => sys_stat(args[1] as *const u8, args[2] as *mut Stat), // TODO: handle `dfd`, `flag`
         SYS_UNLINKAT => sys_unlink(args[1] as *const u8), // TODO: handle `dfd`, `flag`
-        SYS_RENAMEAT => sys_rename(args[1] as *const u8, args[3] as *const u8), // TODO: handle `olddfd`, `newdfd`
+        SYS_RENAMEAT => sys_renameat(args[0], args[1] as *const u8, args[2], args[3] as *const u8), // TODO: handle `olddfd`, `newdfd`
         SYS_LINKAT => sys_link(args[1] as *const u8, args[3] as *const u8), // TODO: handle `olddfd`, `newdfd`, `flags`
+        SYS_SYMLINKAT => Err(SysError::EACCES),
         SYS_FACCESSAT => sys_access(args[1] as *const u8, args[2]), // TODO: handle `dfd`
         // 280
         SYS_UTIMENSAT => {
@@ -240,11 +300,12 @@ pub fn syscall(id: usize, args: [usize; 6], tf: &mut TrapFrame) -> isize {
         }
         SYS_DUP3 => sys_dup2(args[0], args[1]), // TODO: handle `flags`
         SYS_PIPE2 => sys_pipe(args[0] as *mut u32), // TODO: handle `flags`
-        SYS_PRLIMIT64 => {
-            warn!("sys_prlimit64 is unimplemented");
-            Ok(0)
-        }
-
+        SYS_PRLIMIT64 => sys_prlimit64(
+            args[0],
+            args[1],
+            args[2] as *const RLimit,
+            args[3] as *mut RLimit,
+        ),
         // custom temporary syscall
         SYS_MAP_PCI_DEVICE => sys_map_pci_device(args[0], args[1]),
         SYS_GET_PADDR => sys_get_paddr(args[0] as *const u64, args[1] as *mut u64, args[2]),
@@ -268,7 +329,10 @@ pub fn syscall(id: usize, args: [usize; 6], tf: &mut TrapFrame) -> isize {
     };
     if !pid.is_init() {
         // we trust pid 0 process
-        debug!("{}:{}:{} syscall id {} ret with {:x?}", cid, pid, tid, id, ret);
+        debug!(
+            "{}:{}:{} syscall id {} ret with {:x?}",
+            cid, pid, tid, id, ret
+        );
     }
     match ret {
         Ok(code) => code as isize,
@@ -285,9 +349,15 @@ fn x86_64_syscall(id: usize, args: [usize; 6], tf: &mut TrapFrame) -> Option<Sys
         SYS_POLL => sys_poll(args[0] as *mut PollFd, args[1], args[2]),
         SYS_ACCESS => sys_access(args[0] as *const u8, args[1]),
         SYS_PIPE => sys_pipe(args[0] as *mut u32),
-        SYS_SELECT => sys_select(args[0], args[1] as *mut u32, args[2] as *mut u32, args[3] as *mut u32, args[4] as *const TimeVal),
+        SYS_SELECT => sys_select(
+            args[0],
+            args[1] as *mut u32,
+            args[2] as *mut u32,
+            args[3] as *mut u32,
+            args[4] as *const TimeVal,
+        ),
         SYS_DUP2 => sys_dup2(args[0], args[1]),
-//        SYS_PAUSE => sys_pause(),
+        //        SYS_PAUSE => sys_pause(),
         SYS_FORK => sys_fork(tf),
         // use fork for vfork
         SYS_VFORK => sys_fork(tf),
@@ -297,6 +367,11 @@ fn x86_64_syscall(id: usize, args: [usize; 6], tf: &mut TrapFrame) -> Option<Sys
         SYS_LINK => sys_link(args[0] as *const u8, args[1] as *const u8),
         SYS_UNLINK => sys_unlink(args[0] as *const u8),
         SYS_READLINK => sys_readlink(args[0] as *const u8, args[1] as *mut u8, args[2]),
+        // 90
+        SYS_CHMOD => {
+            warn!("sys_chmod is unimplemented");
+            Ok(0)
+        }
         SYS_ARCH_PRCTL => sys_arch_prctl(args[0] as i32, args[1], tf),
         SYS_TIME => sys_time(args[0] as *mut u64),
         SYS_ALARM => {
@@ -394,7 +469,9 @@ pub enum SysError {
 impl fmt::Display for SysError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::SysError::*;
-        write!(f, "{}",
+        write!(
+            f,
+            "{}",
             match self {
                 EPERM => "Operation not permitted",
                 ENOENT => "No such file or directory",
@@ -455,11 +532,10 @@ impl From<VMError> for SysError {
     }
 }
 
-
 const SPIN_WAIT_TIMES: usize = 100;
 
 pub fn spin_and_wait<T>(condvars: &[&Condvar], mut action: impl FnMut() -> Option<T>) -> T {
-    for i in 0..SPIN_WAIT_TIMES {
+    for _i in 0..SPIN_WAIT_TIMES {
         if let Some(result) = action() {
             return result;
         }
@@ -471,4 +547,3 @@ pub fn spin_and_wait<T>(condvars: &[&Condvar], mut action: impl FnMut() -> Optio
         Condvar::wait_any(&condvars);
     }
 }
-

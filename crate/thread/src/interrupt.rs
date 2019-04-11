@@ -25,35 +25,21 @@ pub unsafe fn enable_and_wfi() {
 #[inline(always)]
 #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
 pub unsafe fn disable_and_store() -> usize {
-    if env!("M_MODE") == "1" {
-        let mstatus: usize;
-        asm!("csrci mstatus, 1 << 3" : "=r"(mstatus) ::: "volatile");
-        mstatus & (1 << 3)
-    } else {
-        let sstatus: usize;
-        asm!("csrci sstatus, 1 << 1" : "=r"(sstatus) ::: "volatile");
-        sstatus & (1 << 1)
-    }
+    let sstatus: usize;
+    asm!("csrci sstatus, 1 << 1" : "=r"(sstatus) ::: "volatile");
+    sstatus & (1 << 1)
 }
 
 #[inline(always)]
 #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
 pub unsafe fn restore(flags: usize) {
-    if env!("M_MODE") == "1" {
-        asm!("csrs mstatus, $0" :: "r"(flags) :: "volatile");
-    } else {
-        asm!("csrs sstatus, $0" :: "r"(flags) :: "volatile");
-    }
+    asm!("csrs sstatus, $0" :: "r"(flags) :: "volatile");
 }
 
 #[inline(always)]
 #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
 pub unsafe fn enable_and_wfi() {
-    if env!("M_MODE") == "1" {
-        asm!("csrsi mstatus, 1 << 3; wfi" :::: "volatile");
-    } else {
-        asm!("csrsi sstatus, 1 << 1; wfi" :::: "volatile");
-    }
+    asm!("csrsi sstatus, 1 << 1; wfi" :::: "volatile");
 }
 
 #[inline(always)]
@@ -75,3 +61,32 @@ pub unsafe fn restore(flags: usize) {
 pub unsafe fn enable_and_wfi() {
     asm!("msr daifclr, #2; wfi" :::: "volatile");
 }
+
+#[inline(always)]
+#[cfg(target_arch = "mips")]
+pub unsafe fn disable_and_store() -> usize {
+    let cp0_status: usize;
+    asm!("mfc0 $0, $$12;" : "=r"(cp0_status) ::: "volatile");
+    let cp0_status_new = cp0_status & !1;
+    asm!("mtc0 $0, $$12;" : : "r"(cp0_status_new) :: "volatile");
+    cp0_status & 1
+}
+
+#[inline(always)]
+#[cfg(target_arch = "mips")]
+pub unsafe fn restore(flags: usize) {
+    let cp0_status: usize;
+    asm!("mfc0 $0, $$12;" : "=r"(cp0_status) ::: "volatile");
+    let cp0_status_new = cp0_status | flags;
+    asm!("mtc0 $0, $$12;" : : "r"(cp0_status_new) :: "volatile");
+}
+
+#[inline(always)]
+#[cfg(target_arch = "mips")]
+pub unsafe fn enable_and_wfi() {
+    let cp0_status: usize;
+    asm!("mfc0 $0, $$12;" : "=r"(cp0_status) ::: "volatile");
+    let cp0_status_new = cp0_status | 1;
+    asm!("mtc0 $0, $$12; wait;" : : "r"(cp0_status_new) :: "volatile");
+}
+
