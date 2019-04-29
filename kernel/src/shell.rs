@@ -1,18 +1,20 @@
 //! Kernel shell
 
 use crate::drivers::CMDLINE;
-use crate::fs::{INodeExt, ROOT_INODE};
+use crate::fs::{INodeExt};
 use crate::process::*;
 use alloc::string::String;
 use alloc::vec::Vec;
-
+use crate::rcore_fs::vfs::{PathConfig, PathResolveResult};
 #[cfg(not(feature = "run_cmdline"))]
 pub fn run_user_shell() {
-    if let Ok(inode) = ROOT_INODE.lookup("rust/sh") {
-        let data = inode.read_as_vec().unwrap();
+    let root_path=PathConfig::init_root();
+    if let Ok(PathResolveResult::IsFile{file: inode,..}) = root_path.path_resolve(&root_path.root, "/rust/sh", true) {
+        println!("found");
+        let data = inode.inode.read_as_vec().unwrap();
         processor()
             .manager()
-            .add(Thread::new_user(data.as_slice(), "sh".split(' ')));
+            .add(Thread::new_user(data.as_slice(), "sh".split(' '), Some(&root_path)));
     } else {
         processor().manager().add(Thread::new_kernel(shell, 0));
     }
@@ -20,16 +22,21 @@ pub fn run_user_shell() {
 
 #[cfg(feature = "run_cmdline")]
 pub fn run_user_shell() {
+    let root_path=PathConfig::init_root();
     let cmdline = CMDLINE.read();
-    let inode = ROOT_INODE.lookup(&cmdline).unwrap();
-    let data = inode.read_as_vec().unwrap();
-    processor()
-        .manager()
-        .add(Thread::new_user(data.as_slice(), cmdline.split(' ')));
+    if let Ok(PathResolveResult::IsFile{file: inode}) = root_path.path_resolve(&root_path.root, "/rust/sh", true) {
+        let data = inode.inode.read_as_vec().unwrap();
+        processor()
+            .manager()
+            .add(Thread::new_user(data.as_slice(), cmdline.split(' '), &root_path));
+    }else{
+        panic!("No command line found.");
+    }
 }
 
 pub extern "C" fn shell(_arg: usize) -> ! {
-    let files = ROOT_INODE.list().unwrap();
+    let root_path=PathConfig::init_root();
+    let files = root_path.cwd.inode.list().unwrap();
     println!("Available programs: {:?}", files);
     let mut history = Vec::new();
 
@@ -39,12 +46,12 @@ pub extern "C" fn shell(_arg: usize) -> ! {
         if cmd == "" {
             continue;
         }
-        let name = cmd.trim().split(' ').next().unwrap();
-        if let Ok(file) = ROOT_INODE.lookup(name) {
-            let data = file.read_as_vec().unwrap();
+        //let name = cmd.trim().split(' ').next().unwrap();
+        if let Ok(PathResolveResult::IsFile{file: inode, ..}) = root_path.path_resolve(&root_path.root, &cmd, true) {
+            let data = inode.inode.read_as_vec().unwrap();
             let _pid = processor()
                 .manager()
-                .add(Thread::new_user(data.as_slice(), cmd.split(' ')));
+                .add(Thread::new_user(data.as_slice(), cmd.split(' '), Some(&root_path)));
         // TODO: wait until process exits, or use user land shell completely
         //unsafe { thread::JoinHandle::<()>::_of(pid) }.join().unwrap();
         } else {
@@ -189,8 +196,9 @@ fn get_line(history: &mut Vec<Vec<u8>>) -> String {
     String::from_utf8(line_vec).unwrap_or_default()
 }
 
+
 fn get_char() -> u8 {
-    crate::fs::STDIN.pop() as u8
+    crate::fs::STDIN_INODE.pop() as u8
 }
 
 fn put_char(ch: u8) {

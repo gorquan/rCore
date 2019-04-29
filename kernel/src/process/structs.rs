@@ -14,10 +14,11 @@ use xmas_elf::{
 
 use crate::arch::interrupt::{Context, TrapFrame};
 use crate::fs::{FileHandle, FileLike, INodeExt, OpenOptions, FOLLOW_MAX_DEPTH};
+use crate::rcore_fs::vfs::PathConfig;
 use crate::memory::{ByFrame, GlobalFrameAlloc, KernelStack, MemoryAttr, MemorySet};
 use crate::net::{Socket, SOCKETS};
 use crate::sync::{Condvar, SpinNoIrqLock as Mutex};
-
+use crate::rcore_fs::vfs::INodeContainer;
 use super::abi::{self, ProcInitInfo};
 
 // TODO: avoid pub
@@ -74,7 +75,8 @@ pub struct Process {
     // resources
     pub vm: MemorySet,
     pub files: BTreeMap<usize, FileLike>,
-    pub cwd: String,
+    //pub cwd: String,
+    pub cwd: PathConfig,
     futexes: BTreeMap<usize, Arc<Condvar>>,
 
     // relationship
@@ -132,7 +134,7 @@ impl Thread {
             proc: Arc::new(Mutex::new(Process {
                 vm: MemorySet::new(),
                 files: BTreeMap::default(),
-                cwd: String::from("/"),
+                cwd: PathConfig::init_root(),
                 futexes: BTreeMap::default(),
                 pid: Pid::uninitialized(),
                 parent: None,
@@ -156,7 +158,7 @@ impl Thread {
             proc: Arc::new(Mutex::new(Process {
                 vm,
                 files: BTreeMap::default(),
-                cwd: String::from("/"),
+                cwd: PathConfig::init_root(),
                 futexes: BTreeMap::default(),
                 pid: Pid::uninitialized(),
                 parent: None,
@@ -169,7 +171,7 @@ impl Thread {
     }
 
     /// Make a new user process from ELF `data`
-    pub fn new_user<'a, Iter>(data: &[u8], args: Iter) -> Box<Thread>
+    pub fn new_user<'a, Iter>(data: &[u8], args: Iter, ld_search_path: Option<&PathConfig>) -> Box<Thread>
     where
         Iter: Iterator<Item = &'a str>,
     {
@@ -186,23 +188,30 @@ impl Thread {
             header::Type::SharedObject => {}
             _ => panic!("ELF is not executable or shared object"),
         }
-
+        use crate::rcore_fs::vfs::PathResolveResult;
         // Check interpreter
         if let Ok(loader_path) = elf.get_interpreter() {
-            // assuming absolute path
-            if let Ok(inode) = crate::fs::ROOT_INODE.lookup_follow(loader_path, FOLLOW_MAX_DEPTH) {
-                if let Ok(buf) = inode.read_as_vec() {
-                    debug!("using loader {}", &loader_path);
-                    // Elf loader should not have INTERP
-                    // No infinite loop
-                    let mut new_args: Vec<&str> = args.collect();
-                    new_args.insert(0, loader_path);
-                    return Thread::new_user(buf.as_slice(), new_args.into_iter());
+            // Must give a start point for search!
+            // For init process, this should not happen.
+            if let Some(path_selector)=ld_search_path{
+                if let Ok(PathResolveResult::IsFile {file, ..})=path_selector.path_resolve(&path_selector.root, loader_path, true){
+                //if let Ok(inode) = crate::fs::ROOT_INODE.lookup_follow(loader_path, FOLLOW_MAX_DEPTH) {
+                    if let Ok(buf) = file.inode.read_as_vec() {
+                        debug!("using loader {}", &loader_path);
+                        // Elf loader should not have INTERP
+                        // No infinite loop
+                        let mut new_args: Vec<&str> = args.collect();
+                        new_args.insert(0, loader_path);
+                        //TODO: kernel should load the program into memory, instead of doing it by loader.
+                        return Thread::new_user(buf.as_slice(), new_args.into_iter(), ld_search_path);
+                    } else {
+                        warn!("loader specified as {} but failed to read", &loader_path);
+                    }
                 } else {
-                    warn!("loader specified as {} but failed to read", &loader_path);
+                    warn!("loader specified as {} but not found", &loader_path);
                 }
-            } else {
-                warn!("loader specified as {} but not found", &loader_path);
+            }else{
+                warn!("loader required, but no ld_search_path specified. This means you are launching user process without a filesystem.");
             }
         }
 
@@ -295,7 +304,7 @@ impl Thread {
             proc: Arc::new(Mutex::new(Process {
                 vm,
                 files,
-                cwd: String::from("/"),
+                cwd: PathConfig::init_root(),
                 futexes: BTreeMap::default(),
                 pid: Pid::uninitialized(),
                 parent: None,
@@ -383,6 +392,7 @@ impl Process {
         self.parent = other.parent.clone();
         self.threads = other.threads.clone();
     }
+
 }
 
 trait ToMemoryAttr {

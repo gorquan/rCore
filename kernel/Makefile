@@ -34,7 +34,7 @@ board ?= none
 mode ?= debug
 LOG  ?= debug
 graphic ?= off
-smp  ?= 4
+smp  ?= 1
 pci_passthru ?=
 init ?=
 extra_nic ?= off
@@ -82,7 +82,8 @@ export DTB = $(dtb)
 
 ### qemu options ###
 qemu_opts := \
-	-smp cores=$(smp)
+	-smp cores=$(smp) \
+	-no-reboot
 qemu_net_opts := \
 	-netdev type=tap,id=net0,script=no,downscript=no
 
@@ -253,7 +254,7 @@ justruntest: build
 	@qemu-system-$(arch) $(qemu_opts) --append $(init) -serial file:../tests/stdout -monitor null
 
 debug: $(kernel) $(kernel_img)
-	@qemu-system-$(arch) $(qemu_opts) -s -S &
+	@qemu-system-$(arch) $(qemu_opts) -display sdl -s -S &
 	@sleep 1
 	@$(gdb) $(kernel) -x ../tools/gdbinit
 

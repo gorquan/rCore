@@ -59,8 +59,10 @@ smoltcp = { version = "0.5.0", default-features = false, features = ["alloc", "l
 bit-allocator = { path = "../crate/bit-allocator" }
 rcore-memory = { path = "../crate/memory" }
 rcore-thread = { path = "../crate/thread" }
-rcore-fs = { git = "https://github.com/rcore-os/rcore-fs" }
-rcore-fs-sfs = { git = "https://github.com/rcore-os/rcore-fs" }
+# Merged rcore-fs into kernel. A monolithic kernel is enough.
+#rcore-fs = { git = "https://github.com/rcore-os/rcore-fs" }
+#rcore-fs-sfs = { git = "https://github.com/rcore-os/rcore-fs" }
+static_assertions = "0.3"
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
 bootloader = { git = "https://github.com/rcore-os/bootloader" }
@@ -98,3 +100,13 @@ run-command = ["qemu-system-x86_64",
 
 [build-dependencies]
 cc = "1.0"
+
+[dev-dependencies]
+tempfile = "3"
+
+
+[dependencies.bitvec]
+version = "0.9"
+default-features = false
+features = ["alloc"]
+

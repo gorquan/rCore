@@ -30,26 +30,41 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
     }
 
     // First init log mod, so that we can print log info.
+    //println!("Start logging");
     crate::logging::init();
+    //println!("End logging");
     info!("{:#?}", boot_info);
 
     // Init trap handling.
+    //println!("idt");
     idt::init();
+    //println!("syscall");
     interrupt::fast_syscall::init();
 
     // Init physical memory management and heap.
+    //println!("memory");
+    //println!("memory");
+    //println!("memory");
     memory::init(boot_info);
 
     // Now heap is available
+    //println!("gdt");
     gdt::init();
-
+    //println!("cpu");
     cpu::init();
 
+    //println!("driver::init");
     driver::init();
-
+    //println!("drivers::init");
     crate::drivers::init();
 
+    //println!("fs");
+    crate::rcore_fs::init();
+    //panic!("Process!");
+    //println!("process::init");
+
     crate::process::init();
+    //println!("lkm::init");
 
     crate::lkm::manager::ModuleManager::init();
     AP_CAN_INIT.store(true, Ordering::Relaxed);

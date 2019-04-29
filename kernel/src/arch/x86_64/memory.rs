@@ -11,12 +11,21 @@ use rcore_memory::paging::*;
 use rcore_memory::PAGE_SIZE;
 
 pub fn init(boot_info: &BootInfo) {
+    //panic!("Crash here");
+    println!("memory::init");
     assert_has_not_been_called!("memory::init must be called only once");
+    println!("init_frame_allocator");
     init_frame_allocator(boot_info);
+    //panic!("here");
+    println!("init_device_vm_map");
     init_device_vm_map();
+    println!("init_kernel_kseg2_map");
     init_kernel_kseg2_map();
+    println!("init_heap");
     init_heap();
+    println!("enlarge_heap");
     enlarge_heap();
+    //panic!("end");
     info!("memory: init end");
 }
 

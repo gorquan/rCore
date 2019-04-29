@@ -200,7 +200,7 @@ pub fn detach_driver(loc: &Location) -> bool {
 pub fn init() {
     let mut pci_iter = unsafe { scan_bus(&PortOpsImpl, CSpaceAccessMethod::IO) };
     for dev in pci_iter {
-        info!(
+        println!(
             "pci: {:02x}:{:02x}.{} {:#x} {:#x} ({} {}) irq: {}:{:?}",
             dev.loc.bus,
             dev.loc.device,
@@ -213,6 +213,9 @@ pub fn init() {
             dev.interrupt_pin,
         );
         init_driver(&dev);
+        // Instead of initializing the drivers instantly, we first add it to the Device-Manager.
+        // In the following steps it can be taken over by some kernel module.
+
     }
 }
 

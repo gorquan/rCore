@@ -3,7 +3,7 @@
 use alloc::{collections::vec_deque::VecDeque, string::String, sync::Arc};
 use core::any::Any;
 
-use rcore_fs::vfs::*;
+use crate::rcore_fs::vfs::*;
 
 use crate::sync::Condvar;
 use crate::sync::SpinNoIrqLock as Mutex;

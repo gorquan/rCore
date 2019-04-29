@@ -4,3 +4,4 @@ pub mod api;
 pub mod structs;
 pub mod kernelvm;
 pub mod list_manager;
+pub mod cdev;

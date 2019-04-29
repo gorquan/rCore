@@ -1,6 +1,6 @@
 //! Implement Device
 
-use rcore_fs::dev::*;
+use crate::rcore_fs::dev::*;
 use spin::RwLock;
 
 #[cfg(target_arch = "x86_64")]

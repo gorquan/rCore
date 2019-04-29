@@ -149,12 +149,18 @@ pub fn sys_exec(
 
     // Read program file
     let path = args[0].as_str();
-    let inode = proc.lookup_inode(path)?;
+    use crate::rcore_fs::vfs::PathResolveResult;
+    let inode=match proc.cwd.path_resolve(&proc.cwd.cwd, path, true)?{
+        PathResolveResult::IsFile {file,..}=>Arc::clone(&file.inode),
+        PathResolveResult::IsDir{..}=>{return Err(SysError::EISDIR);}
+        PathResolveResult::NotExist {..}=>{return Err(SysError::ENOENT);}
+    };
+    //let inode = proc.lookup_inode(path)?;
     let buf = inode.read_as_vec()?;
 
     // Make new Thread
     let iter = args.iter().map(|s| s.as_str());
-    let mut thread = Thread::new_user(buf.as_slice(), iter);
+    let mut thread = Thread::new_user(buf.as_slice(), iter, Some(&proc.cwd));
     thread.proc.lock().clone_for_exec(&proc);
 
     // Activate new page table

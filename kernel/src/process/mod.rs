@@ -19,9 +19,9 @@ pub fn init() {
             PROCESSORS[cpu_id].init(cpu_id, Thread::new_init(), manager.clone());
         }
     }
-
+    println!("shell");
     crate::shell::run_user_shell();
-
+    println!("shell done");
     info!("process: init end");
 }
 

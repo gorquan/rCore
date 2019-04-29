@@ -14,7 +14,7 @@ use core::sync::atomic::spin_loop_hint;
 use bit_field::*;
 use bitflags::*;
 use log::*;
-use rcore_fs::dev::BlockDevice;
+use crate::rcore_fs::dev::BlockDevice;
 use volatile::Volatile;
 
 use rcore_memory::paging::PageTable;
@@ -401,7 +401,7 @@ pub fn ahci_init(irq: Option<u32>, header: usize, size: usize) -> Arc<AHCIDriver
                 continue;
             }
 
-            debug!("probing port {}", port_num);
+            println!("probing port {}", port_num);
             // Disable Port First
             port.command.update(|c| {
                 c.set_bit(4, false);
@@ -445,7 +445,7 @@ pub fn ahci_init(irq: Option<u32>, header: usize, size: usize) -> Arc<AHCIDriver
 
             let stat = port.sata_status.read();
             if stat == 0 {
-                warn!("port is not connected to external drive?");
+                println!("port is not connected to external drive?");
             }
 
             let fis = &mut cmd_table.cfis;
@@ -461,7 +461,7 @@ pub fn ahci_init(irq: Option<u32>, header: usize, size: usize) -> Arc<AHCIDriver
             port.spin_on_slot(0);
 
             unsafe {
-                debug!(
+                println!(
                     "Found ATA Device serial {} firmware {} model {} sectors 24bit={} 48bit={}",
                     from_ata_string(&identify_data.serial).trim_end(),
                     from_ata_string(&identify_data.firmware).trim_end(),
@@ -492,6 +492,6 @@ pub fn ahci_init(irq: Option<u32>, header: usize, size: usize) -> Arc<AHCIDriver
             return driver;
         }
     }
-
+    println!("Hello");
     unimplemented!();
 }

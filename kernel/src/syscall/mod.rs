@@ -4,7 +4,7 @@ use alloc::{string::String, sync::Arc, vec::Vec};
 use core::{fmt, slice, str};
 
 use bitflags::bitflags;
-use rcore_fs::vfs::{FileType, FsError, INode, Metadata};
+use crate::rcore_fs::vfs::{FileType, FsError, INode, Metadata};
 use rcore_memory::VMError;
 
 use crate::arch::cpu;
@@ -22,15 +22,10 @@ use self::misc::*;
 use self::net::*;
 use self::proc::*;
 use self::time::*;
-<<<<<<< HEAD
-use self::net::*;
-use self::misc::*;
-use self::custom::*;
+
 use crate::lkm::manager::{sys_init_module, sys_delete_module};
 
 //use crate::backtrace::lr;
-=======
->>>>>>> 75ba0859cff973cf63d38d24e267c03924435c5a
 
 mod custom;
 mod fs;
@@ -276,7 +271,8 @@ pub fn syscall(id: usize, args: [usize; 6], tf: &mut TrapFrame) -> isize {
         SYS_EXIT_GROUP => sys_exit_group(args[0]),
         SYS_OPENAT => sys_openat(args[0], args[1] as *const u8, args[2], args[3]), // TODO: handle `dfd`
         SYS_MKDIRAT => sys_mkdir(args[1] as *const u8, args[2]), // TODO: handle `dfd`
-        //        SYS_MKNODAT => sys_mknod(),
+        SYS_MKNODAT => sys_mknodat(args[0], args[1] as *const u8, args[2], args[3]),
+        SYS_MKNOD=>sys_mknodat(crate::syscall::fs::AT_FDCWD, args[0] as *const u8, args[1], args[2]),
         // 260
         SYS_FCHOWNAT => {
             warn!("sys_fchownat is unimplemented");
@@ -455,6 +451,7 @@ pub enum SysError {
     ENOLCK = 37,
     ENOSYS = 38,
     ENOTEMPTY = 39,
+    ELOOP=40,
     ENOTSOCK = 80,
     ENOPROTOOPT = 92,
     EPFNOSUPPORT = 96,

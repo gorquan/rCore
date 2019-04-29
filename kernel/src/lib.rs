@@ -6,6 +6,9 @@
 #![feature(optin_builtin_traits)]
 #![feature(panic_info_message)]
 #![feature(global_asm)]
+#![feature(const_str_len)]
+#![feature(slice_concat_ext)]
+#![feature(arbitrary_self_types)]
 #![no_std]
 
 // just keep it ...
@@ -35,6 +38,9 @@ mod sync;
 mod syscall;
 mod trap;
 mod lkm;
+mod util;
+mod rcore_fs;
+mod rcore_fs_sfs;
 #[allow(dead_code)]
 #[cfg(target_arch = "x86_64")]
 #[path = "arch/x86_64/mod.rs"]

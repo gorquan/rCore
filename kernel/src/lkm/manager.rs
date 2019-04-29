@@ -5,7 +5,7 @@ use alloc::string::*;
 use super::structs::*;
 use super::api::*;
 use super::kernelvm::*;
-use crate::sync::SpinLock as Mutex;
+use crate::sync::{SpinLock as Mutex, Condvar};
 use lazy_static::lazy_static;
 use xmas_elf::{ElfFile, header, program::{Flags, Type}};
 use core::borrow::BorrowMut;
@@ -27,6 +27,7 @@ use core::mem::transmute;
 use crate::syscall::SysError::*;
 use alloc::boxed::Box;
 use crate::lkm::structs::ModuleState::{Ready, Unloading};
+use alloc::sync::Arc;
 
 // Module Manager is the core part of LKM.
 // It does these jobs: Load preset(API) symbols; manage module loading dependency and linking modules; managing kseg2 virtual space.
@@ -235,11 +236,12 @@ impl ModuleManager{
                     }
                 }
             }
+
             let mut loaded_minfo=Box::new(LoadedModule{
                 info: minfo,
                 exported_symbols: Vec::new(),
                 used_counts:0,
-                using_counts:0,
+                using_counts:Arc::new(ModuleRef{}),
                 vspace: vspace,
                 lock: Mutex::new(()),
                 state: Ready
@@ -399,7 +401,7 @@ impl ModuleManager{
                     error!("[LKM] some module depends on this module!");
                     return Err(EAGAIN);
                 }
-                if current_module.using_counts>0{
+                if Arc::strong_count(&current_module.using_counts)>0{
                     error!("[LKM] there are references to the module!");
                 }
                 let mut cleanup_func:usize=0;
@@ -460,6 +462,14 @@ impl ModuleManager{
 
 
 pub fn sys_init_module(module_image:*const u8, len: usize, param_values: *const u8)->SysResult{
+    let mutex=Mutex::new(());
+    for i in 0..10000{
+
+        let lock=mutex.lock();
+        let func=Condvar::generateDropper(lock);
+        func();
+    }
+
     use crate::process::process;
     let mut proc=process();
     proc.vm.check_read_array(module_image, len)?;

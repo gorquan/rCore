@@ -1,6 +1,7 @@
 use super::*;
 use crate::lkm::structs::LoadedModule;
 use alloc::string::String;
+use alloc::sync::Arc;
 
 pub fn get_module(this_module: usize)->&'static mut LoadedModule{
     unsafe {
@@ -26,7 +27,7 @@ pub extern "C" fn lkm_api_pong()-> usize{
 pub extern "C" fn lkm_api_debug(this_module: usize){
     let module=get_module(this_module);
     module.lock.lock();
-    println!("[LKM] Current module info: name={} version={} api_version={}\nref_count={} dep_count={}", module.info.name, module.info.version, module.info.api_version, module.using_counts, module.used_counts);
+    println!("[LKM] Current module info: name={} version={} api_version={}\nref_count={} dep_count={}", module.info.name, module.info.version, module.info.api_version, Arc::strong_count(&module.using_counts), module.used_counts);
 }
 
 #[no_mangle]

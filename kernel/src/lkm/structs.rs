@@ -2,6 +2,8 @@ use alloc::vec::*;
 use alloc::string::*;
 use super::kernelvm::*;
 use crate::sync::SpinLock as Mutex;
+use alloc::sync::Arc;
+
 pub struct ModuleSymbol{
     pub name: String,
     pub loc: usize
@@ -79,31 +81,29 @@ pub enum ModuleState{
     Unloading
 }
 
+pub struct ModuleRef;
 pub struct LoadedModule{
     pub info: ModuleInfo,
     pub exported_symbols: Vec<ModuleSymbol>,
     pub used_counts: i32,
-    pub using_counts: i32,
+    pub using_counts: Arc<ModuleRef>,
     pub vspace: VirtualSpace,
     pub lock: Mutex<()>,
     pub state:ModuleState
 }
 
-struct ModuleGuard<'a>(&'a mut LoadedModule);
 
-impl<'a> Drop for ModuleGuard<'a>{
-    fn drop(&mut self){
-        self.0.lock.lock();
-        self.0.using_counts-=1;
-    }
-}
 impl LoadedModule{
     // Grabs a reference to the kernel module.
     // For example, a file descriptor to a device file controlled by the module is a reference.
     // This must be called without the lock!
-    fn grab(&mut self)->ModuleGuard{
-        self.lock.lock();
-        self.using_counts+=1;
-        ModuleGuard(self)
+    fn grab(&self)->Arc<ModuleRef>{
+        Arc::clone(&self.using_counts)
     }
+}
+
+// Equivalent of Linux kobject. Has a reference counter to module
+pub struct KObject{
+    pub name: String
+
 }

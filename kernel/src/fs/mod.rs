@@ -1,7 +1,7 @@
 use alloc::{sync::Arc, vec::Vec};
 
-use rcore_fs::vfs::*;
-use rcore_fs_sfs::SimpleFileSystem;
+use crate::rcore_fs::vfs::*;
+use crate::rcore_fs_sfs::SimpleFileSystem;
 
 #[cfg(target_arch = "x86_64")]
 use crate::arch::driver::ide;
@@ -9,13 +9,14 @@ use crate::arch::driver::ide;
 pub use self::file::*;
 pub use self::file_like::*;
 pub use self::pipe::Pipe;
-pub use self::stdio::{STDIN, STDOUT};
+pub use self::stdio::{STDIN, STDOUT, STDIN_INODE, STDOUT_INODE};
 
 mod device;
 mod file;
 mod file_like;
 mod pipe;
-mod stdio;
+pub mod stdio;
+pub mod tmpfs;
 
 /// Hard link user programs
 #[cfg(feature = "link_user")]
@@ -32,6 +33,8 @@ _user_img_end:
 "#
 ));
 
+//TODO: moved to mountfs
+/*
 lazy_static! {
     /// The root of file system
     pub static ref ROOT_INODE: Arc<INode> = {
@@ -59,9 +62,13 @@ lazy_static! {
         };
 
         let sfs = SimpleFileSystem::open(device).expect("failed to open SFS");
-        sfs.root_inode()
+        println!("Root inode!");
+        let ri=sfs.root_inode();
+        println!("Root inode get!");
+        ri
     };
 }
+*/
 
 pub const FOLLOW_MAX_DEPTH: usize = 1;
 
@@ -80,3 +87,4 @@ impl INodeExt for INode {
         Ok(buf)
     }
 }
+

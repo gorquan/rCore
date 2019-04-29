@@ -7,7 +7,7 @@ use smoltcp::wire::{EthernetAddress, Ipv4Address};
 use spin::RwLock;
 
 use crate::sync::Condvar;
-use rcore_fs::dev::BlockDevice;
+use crate::rcore_fs::dev::BlockDevice;
 
 #[allow(dead_code)]
 pub mod block;

@@ -29,10 +29,13 @@ pub fn error(tf: &TrapFrame) -> ! {
 }
 
 pub fn serial(c: char) {
+    use alloc::sync::Arc;
+    use crate::fs::stdio::Stdin;
+    let stdin=&crate::fs::stdio::STDIN_INODE;
     if c == '\r' {
         // in linux, we use '\n' instead
-        crate::fs::STDIN.push('\n');
+        stdin.push('\n');
     } else {
-        crate::fs::STDIN.push(c);
+        stdin.push(c);
     }
 }
