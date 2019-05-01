@@ -2,39 +2,10 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="f6e1a918-0bdf-413b-8660-07d93157d70a" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/src/fs/tmpfs.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/lkm/cdev.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../crate/thread/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../crate/thread/src/lib.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../crate/thread/src/processor.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../crate/thread/src/processor.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../crate/thread/src/std_thread.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../crate/thread/src/std_thread.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Makefile" beforeDir="false" afterPath="$PROJECT_DIR$/Makefile" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/arch/x86_64/memory.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/x86_64/memory.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/arch/x86_64/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/arch/x86_64/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/drivers/block/ahci.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/drivers/block/ahci.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/drivers/block/virtio_blk.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/drivers/block/virtio_blk.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/drivers/bus/pci.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/drivers/bus/pci.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/drivers/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/drivers/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/fs/device.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/fs/device.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/fs/file.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/fs/file.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/fs/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/fs/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/fs/pipe.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/fs/pipe.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/fs/stdio.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/fs/stdio.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lkm/api.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/lkm/api.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lkm/manager.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/lkm/manager.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lkm/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/lkm/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lkm/structs.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/lkm/structs.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/process/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/process/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/process/structs.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/process/structs.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/shell.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/shell.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sync/condvar.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/sync/condvar.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/syscall/fs.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/syscall/fs.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/syscall/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/syscall/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/syscall/proc.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/syscall/proc.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/trap.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/trap.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lkm/cdev.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/lkm/cdev.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../tools/gdbinit" beforeDir="false" afterPath="$PROJECT_DIR$/../tools/gdbinit" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -65,14 +36,18 @@
       </file>
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/drivers/block/ahci.rs">
-          <provider selected="true" editor-type-id="text-editor" />
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="405">
+              <caret line="311" lean-forward="true" selection-start-line="311" selection-end-line="311" />
+            </state>
+          </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="true">
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/drivers/block/virtio_blk.rs">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="563">
-              <caret line="227" column="18" selection-start-line="227" selection-start-column="18" selection-end-line="227" selection-end-column="18" />
+            <state relative-caret-position="-7">
+              <caret line="5" column="16" lean-forward="true" selection-start-line="5" selection-start-column="16" selection-end-line="5" selection-end-column="16" />
             </state>
           </provider>
         </entry>
@@ -80,26 +55,30 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/lkm/cdev.rs">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="477">
-              <caret line="90" column="22" selection-start-line="90" selection-start-column="22" selection-end-line="90" selection-end-column="22" />
+            <state relative-caret-position="420">
+              <caret line="88" lean-forward="true" selection-start-line="88" selection-end-line="88" />
             </state>
           </provider>
         </entry>
       </file>
       <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/src/rcore_fs/mod.rs">
+        <entry file="file://$PROJECT_DIR$/src/rcore_fs/vfs.rs">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="330">
-              <caret line="22" column="33" selection-start-line="22" selection-start-column="33" selection-end-line="22" selection-end-column="33" />
+            <state relative-caret-position="-1620">
+              <caret line="445" column="22" lean-forward="true" selection-start-line="445" selection-start-column="15" selection-end-line="445" selection-end-column="22" />
+              <folding>
+                <element signature="e#748#749#0" expanded="true" />
+                <element signature="e#779#780#0" expanded="true" />
+              </folding>
             </state>
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/src/fs/tmpfs.rs">
+      <file pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/src/syscall/fs.rs">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="675">
-              <caret line="72" column="14" lean-forward="true" selection-start-line="72" selection-start-column="14" selection-end-line="72" selection-end-column="14" />
+            <state relative-caret-position="345">
+              <caret line="341" column="29" selection-start-line="341" selection-start-column="29" selection-end-line="341" selection-end-column="29" />
             </state>
           </provider>
         </entry>
@@ -284,6 +263,13 @@
               <item name="kernel" type="3d21c010:ScopeViewTreeModel$ProjectNode" />
               <item name="kernel" type="2674bda8:ScopeViewTreeModel$GroupNode" />
               <item name="src" type="9f88c78c:ScopeViewTreeModel$FileNode" />
+              <item name="drivers" type="9f88c78c:ScopeViewTreeModel$FileNode" />
+              <item name="serial" type="9f88c78c:ScopeViewTreeModel$FileNode" />
+            </path>
+            <path>
+              <item name="kernel" type="3d21c010:ScopeViewTreeModel$ProjectNode" />
+              <item name="kernel" type="2674bda8:ScopeViewTreeModel$GroupNode" />
+              <item name="src" type="9f88c78c:ScopeViewTreeModel$FileNode" />
               <item name="fs" type="9f88c78c:ScopeViewTreeModel$FileNode" />
             </path>
             <path>
@@ -381,7 +367,7 @@
     </panes>
   </component>
   <component name="PropertiesComponent">
-    <property name="com.android.tools.idea.instantapp.provision.ProvisionBeforeRunTaskProvider.myTimeStamp" value="1556509100471" />
+    <property name="com.android.tools.idea.instantapp.provision.ProvisionBeforeRunTaskProvider.myTimeStamp" value="1556511430226" />
     <property name="last_opened_file_path" value="$PROJECT_DIR$" />
     <property name="org.rust.cargo.project.model.PROJECT_DISCOVERY" value="true" />
   </component>
@@ -637,17 +623,6 @@
     <entry file="file://$PROJECT_DIR$/src/rcore_fs/dirty.rs">
       <provider selected="true" editor-type-id="text-editor" />
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/rcore_fs/vfs.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="120">
-          <caret line="8" column="4" lean-forward="true" selection-start-line="8" selection-start-column="4" selection-end-line="36" selection-end-column="33" />
-          <folding>
-            <element signature="e#748#749#0" expanded="true" />
-            <element signature="e#779#780#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/src/rcore_fs/file.rs">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="300">
@@ -676,13 +651,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="1425">
           <caret line="95" column="9" selection-start-line="95" selection-start-column="9" selection-end-line="95" selection-end-column="9" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/syscall/fs.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-5991">
-          <caret line="670" column="66" lean-forward="true" selection-start-line="670" selection-start-column="66" selection-end-line="670" selection-end-column="66" />
         </state>
       </provider>
     </entry>
@@ -749,13 +717,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/lkm/cdev.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="477">
-          <caret line="90" column="22" selection-start-line="90" selection-start-column="22" selection-end-line="90" selection-end-column="22" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/src/rcore_fs_sfs/mod.rs">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="330">
@@ -770,13 +731,42 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/drivers/block/ahci.rs">
-      <provider selected="true" editor-type-id="text-editor" />
-    </entry>
     <entry file="file://$PROJECT_DIR$/src/drivers/block/virtio_blk.rs">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="563">
-          <caret line="227" column="18" selection-start-line="227" selection-start-column="18" selection-end-line="227" selection-end-column="18" />
+        <state relative-caret-position="-7">
+          <caret line="5" column="16" lean-forward="true" selection-start-line="5" selection-start-column="16" selection-end-line="5" selection-end-column="16" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/drivers/block/ahci.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="405">
+          <caret line="311" lean-forward="true" selection-start-line="311" selection-end-line="311" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/lkm/cdev.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="420">
+          <caret line="88" lean-forward="true" selection-start-line="88" selection-end-line="88" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/rcore_fs/vfs.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-1620">
+          <caret line="445" column="22" lean-forward="true" selection-start-line="445" selection-start-column="15" selection-end-line="445" selection-end-column="22" />
+          <folding>
+            <element signature="e#748#749#0" expanded="true" />
+            <element signature="e#779#780#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/syscall/fs.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="345">
+          <caret line="341" column="29" selection-start-line="341" selection-start-column="29" selection-end-line="341" selection-end-column="29" />
         </state>
       </provider>
     </entry>

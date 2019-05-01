@@ -85,7 +85,12 @@ pub struct FileOperations {
     pub metadata: Option<extern "C" fn(file: &FileHandle) -> Result<Metadata>>,
     pub read_entry: Option<extern "C" fn(file: &mut FileHandle) -> Result<String>>
 }
+pub fn dev_major(dev: u64)->u32{
 
+}
+pub fn dev_minor(dev: u64)->u32{
+
+}
 pub struct CharDev{
     parent_module: Option<Arc<ModuleRef>>,
     file_op: Arc<FileOperations>
