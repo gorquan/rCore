@@ -1,6 +1,7 @@
 //! File handle for process
 
 use alloc::{string::String, sync::Arc};
+use core::fmt;
 
 
 use crate::rcore_fs::vfs::{FsError, INode, Metadata, Result, VirtualFS, INodeContainer, PollStatus};
@@ -162,6 +163,20 @@ impl FileHandle {
     pub fn io_control(&self, cmd: u32, arg: usize) -> Result<()> {
         overlay_op!(self,io_control=>self, cmd, arg);
         self.inode_container.inode.io_control(cmd, arg)
+    }
+
+    pub fn inode(&self) -> Arc<INode> {
+        self.inode_container.inode.clone()
+    }
+}
+
+impl fmt::Debug for FileHandle {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        return f
+            .debug_struct("FileHandle")
+            .field("offset", &self.offset)
+            .field("options", &self.options)
+            .finish();
     }
 }
 

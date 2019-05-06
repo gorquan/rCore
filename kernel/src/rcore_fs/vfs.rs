@@ -134,7 +134,7 @@ pub struct Timespec {
     pub nsec: i32,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum FileType {
     File,
     Dir,
@@ -210,7 +210,6 @@ pub trait FileSystem: Sync+Send {
 
 use alloc::collections::btree_map::*;
 use core::sync::*;
-use once::*;
 use spin::RwLock;
 use alloc::boxed::Box;
 use alloc::borrow::ToOwned;
@@ -220,7 +219,7 @@ use alloc::borrow::ToOwned;
 use alloc::slice::*;
 use core::mem::*;
 use crate::rcore_fs_sfs::SimpleFileSystem;
-
+use crate::drivers::BlockDriver;
 
 
 pub struct VirtualFS{
@@ -239,7 +238,7 @@ pub struct INodeContainer{
 impl VirtualFS{
     pub fn init()->Arc<RwLock<VirtualFS>>{
         //panic!("FS");
-        assert_has_not_been_called!("VirtualFS::init must be called only once.");
+        //assert_has_not_been_called!("VirtualFS::init must be called only once.");
         //
         let mut vfs=VirtualFS{
             filesystem: VirtualFS::init_mount_sfs(),
@@ -256,9 +255,9 @@ impl VirtualFS{
                 let device = {
                 #[cfg(any(target_a = "riscv32", target_arch = "riscv64", target_arch = "x86_64"))]
                     {
-                        crate::drivers::BLK_DRIVERS.read().iter()
+                        Arc::new(BlockDriver(crate::drivers::BLK_DRIVERS.read().iter()
                             .next().expect("Block device not found")
-                            .clone()
+                            .clone()))
                     }
                 #[cfg(target_arch = "aarch64")]
                     {
@@ -360,7 +359,7 @@ impl PathConfig{
     }
 
     pub fn resolvePath(&self, cwd: &Arc<INodeContainer>, path: &str, follow_counter: &mut usize, depth_counter: usize)->Result<PathResolveResult>{
-        //println!("Path resolution {}", path);
+        debug!("Path resolution {}", path);
         let mut cwd=Arc::clone({
             if path.starts_with("/"){
                 &self.root
@@ -379,9 +378,9 @@ impl PathConfig{
             if *part==""{
                 continue;
             }
-            //println!("Resolve part: {}", part);
+            debug!("Resolve part: {}", part);
             let next=cwd.find(self.hasReachedRoot(&cwd), part)?;
-            //println!("solve link");
+            debug!("solve link");
             // Try solve symbolic link.
             let symlink_solve_result=self.resolveSymbolRecursively(&cwd, &next, follow_counter, depth_counter)?;
             match symlink_solve_result{
@@ -390,13 +389,13 @@ impl PathConfig{
                 PathResolveResult::NotExist {..}=>{return Err(FsError::EntryNotFound);}
             }
         }
-        //println!("Last part {}", last_part);
+        debug!("Last part {}", last_part);
         // Resolving last part.
         let next=cwd.find(self.hasReachedRoot(&cwd), last_part);
-        //println!("match next");
+        debug!("match next");
         match next{
             Ok(next)=>{
-                //println!("Ok!");
+                debug!("Ok!");
                 //No extra check needed, since extra work can be done through check.
                 if next.inode.metadata().unwrap().type_==FileType::Dir{
                     Ok(PathResolveResult::IsDir{
@@ -512,8 +511,8 @@ impl INodeContainer{
 
     //Does a one-level finding.
     pub fn find(self: &Arc<INodeContainer>, root: bool, next: &str)->Result<Arc<INodeContainer>>{
-        //println!("finding name {}", next);
-        //println!("in {:?}", self.inode.list().unwrap());
+        debug!("finding name {}", next);
+        debug!("in {:?}", self.inode.list().unwrap());
         match next{
             ""=>Ok(Arc::clone(&self)),
             "."=>Ok(Arc::clone(&self)),
@@ -542,7 +541,7 @@ impl INodeContainer{
                     inode: self.inode.find(next)?,
                     vfs: Arc::clone(&self.vfs)
                 };
-                //println!("find Ok!");
+                debug!("find Ok!");
                 Ok(self.vfs.read().overlayMountpoint(next_ic))
             }
 
@@ -561,7 +560,7 @@ impl INodeContainer{
                             let queryback=self.find(false, &name)?;
                             let queryback=self.vfs.read().getOverlaidMountPoint(queryback);
                             //TODO: mountpoint check!
-                            //println!("checking name {}", name);
+                            debug!("checking name {}", name);
                             if Arc::ptr_eq(&queryback.vfs, &self.vfs) && queryback.inode.metadata().unwrap().inode == child.inode.metadata().unwrap().inode{
                                 return Ok(name);
                             }

@@ -53,13 +53,13 @@ unsafe fn get_apic()->XApic{
     lapic
 }
 pub fn invoke_on_allcpu<A: 'static>(f: fn(&A)->(), arg: A , wait: bool){
-    println!("Step 1");
+    //Step 1: initialize
     use super::interrupt::consts::IPIFuncCall;
     let mut apic=unsafe{ get_apic()};
     let sem=Arc::new(Semaphore::new(0));
     let arcarg=Arc::new(arg);
     let mut cpu_count=0;
-    println!("Step 2");
+    //Step 2: invoke
     super::gdt::Cpu::foreach(|cpu| {
         let id=cpu.get_id();
         println!("Sending interrupt to cpu {} from {}", id, super::cpu::id());
@@ -69,9 +69,7 @@ pub fn invoke_on_allcpu<A: 'static>(f: fn(&A)->(), arg: A , wait: bool){
     });
     if wait{
         for _ in 0..cpu_count{
-            println!("Acquire!");
             sem.acquire();
-            println!("Acquired!");
         }
     }
 }

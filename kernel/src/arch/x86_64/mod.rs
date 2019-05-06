@@ -16,7 +16,7 @@ pub mod ipi;
 pub mod syscall;
 pub mod timer;
 
-static AP_CAN_INIT: AtomicBool = ATOMIC_BOOL_INIT;
+static AP_CAN_INIT: AtomicBool = AtomicBool::new(false);
 
 /// The entry point of kernel
 #[no_mangle] // don't mangle the name of this function
@@ -30,55 +30,55 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
     }
 
     // First init log mod, so that we can print log info.
-    //println!("Start logging");
     crate::logging::init();
-    //println!("End logging");
     info!("{:#?}", boot_info);
 
     // Init trap handling.
-    //println!("idt");
     idt::init();
-    //println!("syscall");
     interrupt::fast_syscall::init();
 
     // Init physical memory management and heap.
-    //println!("memory");
-    //println!("memory");
-    //println!("memory");
     memory::init(boot_info);
 
     // Now heap is available
-    //println!("gdt");
+    // Init GDT
     gdt::init();
-    //println!("cpu");
+    //get local apic id of cpu
     cpu::init();
-
-    //println!("driver::init");
+    // Use IOAPIC instead of PIC, use APIC Timer instead of PIT, init serial&keyboard in x86_64
     driver::init();
-    //println!("drivers::init");
+    // init pci/bus-based devices ,e.g. Intel 10Gb NIC, ...
     crate::drivers::init();
 
-    //println!("fs");
-    crate::rcore_fs::init();
-    //panic!("Process!");
-    //println!("process::init");
-
-    crate::process::init();
-    //println!("lkm::init");
-
+    // Startup ModuleManager.
     crate::lkm::manager::ModuleManager::init();
 
+    // Startup CDevManager
     crate::lkm::cdev::CDevManager::init();
-    AP_CAN_INIT.store(true, Ordering::Relaxed);
 
+    crate::rcore_fs::init();
+
+    // init cpu scheduler and process manager, and add user shell app in process manager
+    crate::process::init();
+
+
+    //wake up other CPUs
+
+    AP_CAN_INIT.store(true, Ordering::Relaxed);
+    //call the first main function in kernel.
     crate::kmain();
 }
 
 /// The entry point for other processors
 fn other_start() -> ! {
+    // Init trap handling.
     idt::init();
+    // init gdt
     gdt::init();
+    // init local apic
     cpu::init();
+    // setup fast syscall in xv6-64
     interrupt::fast_syscall::init();
+    //call the first main function in kernel.
     crate::kmain();
 }

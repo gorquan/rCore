@@ -156,12 +156,12 @@ impl CDevManager{
         //cdevm.registerDevice(20, super::hello_device::get_cdev());
     }
     pub fn registerDevice(&mut self, dev: u32, device: CharDev){
-        println!("Registering device for {}", dev);
+        info!("Registering device for {}", dev);
         self.dev_map.insert(dev, Arc::new(RwLock::new(device)));
     }
     pub fn openDevice(&self, inode_container: Arc<INodeContainer>, options: OpenOptions)->Result<FileLike>{
         let dev=inode_container.inode.metadata()?.rdev;
-        println!("Finding device {} {} {}", dev, dev_major(dev), dev_minor(dev));
+        info!("Finding device {} {} {}", dev, dev_major(dev), dev_minor(dev));
         let cdev=self.dev_map.get(&dev_major(dev)).ok_or(FsError::NoDevice)?;
         Ok(FileLike::File(FileHandle::new_with_cdev(inode_container, options, cdev)))
     }
