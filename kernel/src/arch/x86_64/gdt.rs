@@ -22,14 +22,26 @@ pub fn init() {
 
 static mut CPUS: [Option<Cpu>; MAX_CPU_NUM] = [
     // TODO: More elegant ?
-    None, None, None, None, None, None, None, None,
+    None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None,
+    None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None,
+    None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None,
+    None, None, None, None, None, None, None, None, None, None, None, None, None, None, None,
+    None,
+    //    None, None, None, None, None, None, None, None,
+    //    None, None, None, None, None, None, None, None,
+    //    None, None, None, None, None, None, None, None,
+    //    None, None, None, None, None, None, None, None,
+    //    None, None, None, None, None, None, None, None,
+    //    None, None, None, None, None, None, None, None,
+    //    None, None, None, None, None, None, None, None,
+    //    None, None, None, None, None, None, None, None,
 ];
 
 pub struct Cpu {
     gdt: GlobalDescriptorTable,
     tss: TaskStateSegment,
     double_fault_stack: [u8; 0x100],
-    preemption_disabled: AtomicBool, //TODO: check this on timer()
+    preemption_disabled: AtomicBool, //TODO: check this on timer(). This is currently unavailable since related code is in rcore_thread.
     ipi_handler_queue: Mutex<Vec<IPIEventItem>>,
     id: usize
 }

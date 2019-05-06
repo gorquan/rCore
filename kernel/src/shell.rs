@@ -9,12 +9,14 @@ use crate::rcore_fs::vfs::{PathConfig, PathResolveResult};
 #[cfg(not(feature = "run_cmdline"))]
 pub fn run_user_shell() {
     let root_path=PathConfig::init_root();
-    if let Ok(PathResolveResult::IsFile{file: inode,..}) = root_path.path_resolve(&root_path.root, "/rust/sh", true) {
-        println!("found");
+    if let Ok(PathResolveResult::IsFile{file: inode,..}) = root_path.path_resolve(&root_path.root, "busybox", true) {
         let data = inode.inode.read_as_vec().unwrap();
-        processor()
-            .manager()
-            .add(Thread::new_user(data.as_slice(), "sh".split(' '), Some(&root_path)));
+        processor().manager().add(Thread::new_user(
+            data.as_slice(),
+            vec!["busybox".into(), "sh".into()],
+            Vec::new(),
+            None
+        ));
     } else {
         processor().manager().add(Thread::new_kernel(shell, 0));
     }
@@ -24,14 +26,15 @@ pub fn run_user_shell() {
 pub fn run_user_shell() {
     let root_path=PathConfig::init_root();
     let cmdline = CMDLINE.read();
-    if let Ok(PathResolveResult::IsFile{file: inode}) = root_path.path_resolve(&root_path.root, "/rust/sh", true) {
+    if let Ok(PathResolveResult::IsFile{file: inode}) = root_path.path_resolve(&root_path.root, &cmdline, true) {
         let data = inode.inode.read_as_vec().unwrap();
         processor()
             .manager()
-            .add(Thread::new_user(data.as_slice(), cmdline.split(' '), &root_path));
+            .add(Thread::new_user(data.as_slice(), cmdline.split(' ').map(|s| s.into()).collect(), Vec::new(), None));
     }else{
         panic!("No command line found.");
     }
+
 }
 
 pub extern "C" fn shell(_arg: usize) -> ! {
@@ -46,12 +49,17 @@ pub extern "C" fn shell(_arg: usize) -> ! {
         if cmd == "" {
             continue;
         }
-        //let name = cmd.trim().split(' ').next().unwrap();
-        if let Ok(PathResolveResult::IsFile{file: inode, ..}) = root_path.path_resolve(&root_path.root, &cmd, true) {
+
+        let name = cmd.trim().split(' ').next().unwrap();
+        if let Ok(PathResolveResult::IsFile{file: inode, ..}) = root_path.path_resolve(&root_path.root, &name, true) {
             let data = inode.inode.read_as_vec().unwrap();
-            let _pid = processor()
-                .manager()
-                .add(Thread::new_user(data.as_slice(), cmd.split(' '), Some(&root_path)));
+            let _pid = processor().manager().add(Thread::new_user(
+                data.as_slice(),
+                cmd.split(' ').map(|s| s.into()).collect(),
+                Vec::new(),
+                Some(&root_path)
+            ));
+
         // TODO: wait until process exits, or use user land shell completely
         //unsafe { thread::JoinHandle::<()>::_of(pid) }.join().unwrap();
         } else {

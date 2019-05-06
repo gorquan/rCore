@@ -97,7 +97,7 @@ impl LoadedModule{
     // Grabs a reference to the kernel module.
     // For example, a file descriptor to a device file controlled by the module is a reference.
     // This must be called without the lock!
-    fn grab(&self)->Arc<ModuleRef>{
+    pub fn grab(&self)->Arc<ModuleRef>{
         Arc::clone(&self.using_counts)
     }
 }

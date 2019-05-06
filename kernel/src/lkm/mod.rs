@@ -5,3 +5,5 @@ pub mod structs;
 pub mod kernelvm;
 pub mod list_manager;
 pub mod cdev;
+pub mod hello_device;
+pub mod ffi;

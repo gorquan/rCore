@@ -2,14 +2,18 @@
 
 use alloc::{string::String, sync::Arc};
 
-use crate::rcore_fs::vfs::{FsError, INode, Metadata, Result, VirtualFS, INodeContainer};
-use crate::lkm::cdev::FileOperations;
+
+use crate::rcore_fs::vfs::{FsError, INode, Metadata, Result, VirtualFS, INodeContainer, PollStatus};
+use crate::lkm::cdev::{FileOperations, LockedCharDev};
+
 #[derive(Clone)]
 pub struct FileHandle {
     pub inode_container: Arc<INodeContainer>,
     offset: u64,
     options: OpenOptions,
-    overlay_file_operations: Option<Arc<FileOperations>>
+    pub overlay_file_operations: Option<Arc<FileOperations>>,
+    pub belonging_device:Option<Arc<LockedCharDev>>,
+    pub user_data: usize
 }
 
 #[derive(Debug, Clone)]
@@ -30,9 +34,10 @@ macro_rules! overlay_op{
     ($sel:ident,$v:ident => $($x:expr),* ) => {
         {
             if let Some(overlay_file_operations)=$sel.overlay_file_operations.as_ref(){
-                if let Some(funct)=overlay_file_operations.$v.as_ref(){
-                    return funct($($x),*);
-                }
+                //if let Some(funct)=overlay_file_operations.$v.as_ref(){
+                    let ops=Arc::clone(overlay_file_operations);
+                    return ops.$v($($x),*);
+                //}
 
             }
         }
@@ -44,13 +49,22 @@ impl FileHandle {
             inode_container,
             offset: 0,
             options,
-            overlay_file_operations: None
+            overlay_file_operations: None,
+            belonging_device: None,
+            user_data: 0
         }
     }
-    pub fn new_with_overlay_op(inode_container: Arc<INodeContainer>, options: OpenOptions, ops: Arc<FileOperations>)->Self{
+    pub fn new_with_cdev(inode_container: Arc<INodeContainer>, options: OpenOptions, ops: &Arc<LockedCharDev>)->Self{
         let mut handle=FileHandle::new(inode_container, options);
-        handle.overlay_file_operations=Some(ops);
-        (ops.open)(&mut handle);
+        handle.overlay_file_operations=Some(Arc::clone(&ops.read().file_op));
+        handle.belonging_device=Some(Arc::clone(ops));
+        handle.user_data=handle.overlay_file_operations.as_ref().unwrap().open();
+        handle
+    }
+    pub fn new_with_overlay_op(inode_container: Arc<INodeContainer>, options: OpenOptions, ops: &Arc<FileOperations>)->Self{
+        let mut handle=FileHandle::new(inode_container, options);
+        handle.overlay_file_operations=Some(Arc::clone(ops));
+        handle.user_data=handle.overlay_file_operations.as_ref().unwrap().open();
         handle
 
     }
@@ -138,5 +152,21 @@ impl FileHandle {
         let name = self.inode_container.inode.get_entry(self.offset as usize)?;
         self.offset += 1;
         Ok(name)
+    }
+
+    pub fn poll(&self) -> Result<PollStatus> {
+        overlay_op!(self,poll=>self);
+        self.inode_container.inode.poll()
+    }
+
+    pub fn io_control(&self, cmd: u32, arg: usize) -> Result<()> {
+        overlay_op!(self,io_control=>self, cmd, arg);
+        self.inode_container.inode.io_control(cmd, arg)
+    }
+}
+
+impl Drop for FileHandle{
+    fn drop(&mut self){
+        overlay_op!(self, close=>self.user_data);
     }
 }

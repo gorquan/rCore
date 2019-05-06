@@ -8,6 +8,9 @@ pub struct Dirty<T> {
     dirty: bool,
 }
 
+unsafe impl<T> Send for Dirty<T> {}
+unsafe impl<T> Sync for Dirty<T> {}
+
 impl<T> Dirty<T> {
     /// Create a new Dirty
     pub fn new(val: T) -> Dirty<T> {

@@ -2,6 +2,8 @@ use super::*;
 use crate::lkm::structs::LoadedModule;
 use alloc::string::String;
 use alloc::sync::Arc;
+use alloc::boxed::Box;
+use core::alloc::{GlobalAlloc, Layout};
 
 pub fn get_module(this_module: usize)->&'static mut LoadedModule{
     unsafe {
@@ -39,4 +41,16 @@ pub extern "C" fn lkm_api_query_symbol(symbol: *const u8)->usize{
         }
     })
 }
+
+#[no_mangle]
+pub extern "C" fn lkm_api_kmalloc(size: usize)-> usize{
+    unsafe {crate::HEAP_ALLOCATOR.alloc(Layout::from_size_align(size, 8).unwrap()) as usize}
+}
+
+#[no_mangle]
+pub extern "C" fn lkm_api_kfree(ptr: usize, size: usize){
+    unsafe {crate::HEAP_ALLOCATOR.dealloc(ptr as *mut u8, Layout::from_size_align(size, 8).unwrap());}
+}
+
+
 
