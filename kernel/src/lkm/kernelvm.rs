@@ -221,9 +221,9 @@ impl VirtualArea{
         for p in Page::range_of(aligned_start_addr, aligned_end){
             parent.page_allocator.map(&mut active_pt, p.start_address(), attr);
         }
-        //println!("[VMM] Allocating");
+        debug!("[VMM] Allocating");
         //invoke_on_allcpu(tlb_shootdown, (aligned_start_addr, aligned_end),true);
-        //println!("[VMM] Allocated!");
+        debug!("[VMM] Allocated!");
         VirtualArea{
             start: aligned_start_addr,
             end: aligned_end,

@@ -1,6 +1,9 @@
 use riscv::register::{scause::Scause, sstatus, sstatus::Sstatus};
 
 /// Saved registers on a trap.
+///
+/// WARN: sp needs to be 128-bit (16 Bytes) aligned
+///       but we found it actually needs 32 Bytes aligned ???
 #[derive(Clone)]
 #[repr(C)]
 pub struct TrapFrame {
@@ -14,8 +17,6 @@ pub struct TrapFrame {
     pub stval: usize,
     /// Supervisor Cause
     pub scause: Scause,
-    /// Reserve space for hartid
-    pub _hartid: usize,
 }
 
 impl TrapFrame {
@@ -40,7 +41,7 @@ impl TrapFrame {
     ///
     /// The new thread starts at `entry_addr`.
     /// The stack pointer will be set to `sp`.
-    fn new_user_thread(entry_addr: usize, sp: usize) -> Self {
+    pub fn new_user_thread(entry_addr: usize, sp: usize) -> Self {
         use core::mem::zeroed;
         let mut tf: Self = unsafe { zeroed() };
         tf.x[2] = sp;
@@ -288,10 +289,5 @@ impl Context {
             },
         }
         .push_at(kstack_top)
-    }
-
-    /// Used for getting the init TrapFrame of a new user context in `sys_exec`.
-    pub unsafe fn get_init_tf(&self) -> TrapFrame {
-        (*(self.sp as *const InitStack)).tf.clone()
     }
 }

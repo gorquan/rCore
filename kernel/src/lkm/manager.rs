@@ -1,4 +1,3 @@
-use once::*;
 use alloc::prelude::*;
 use alloc::vec::*;
 use alloc::string::*;
@@ -143,7 +142,7 @@ impl ModuleManager{
                 ENOEXEC
             })?;
             //Check dependencies
-            println!("[LKM] loading module {} version {} api_version {}", minfo.name, minfo.version, minfo.api_version);
+            info!("[LKM] loading module {} version {} api_version {}", minfo.name, minfo.version, minfo.api_version);
             for i in 0..self.loaded_modules.len(){
                 if self.loaded_modules[i].info.name==minfo.name{
                     error!("[LKM] another instance of module {} (api version {}) has been loaded!", self.loaded_modules[i].info.name, self.loaded_modules[i].info.api_version);
@@ -250,7 +249,7 @@ impl ModuleManager{
                 lock: Mutex::new(()),
                 state: Ready
             });
-            println!("[LKM] module load done at {}, now need to do the relocation job.", base);
+            info!("[LKM] module load done at {}, now need to do the relocation job.", base);
             // We only search two tables for relocation info: the symbols from itself, and the symbols from the global exported symbols.
             let dynsym_table={
                 let elffile=&elf;
@@ -261,9 +260,9 @@ impl ModuleManager{
                     return Err(ENOEXEC);
                 }
             };
-            println!("[LKM] Loading dynamic entry");
+            info!("[LKM] Loading dynamic entry");
             if let Dynamic64(dynamic_entries)=elf.find_section_by_name(".dynamic").ok_or_else(||{error!("[LKM] .dynamic not found!");ENOEXEC})?.get_data(&elf).map_err(|_|{error!("[LKM] corrupted .dynamic!"); ENOEXEC})? {
-                println!("[LKM] Iterating modules");
+                info!("[LKM] Iterating modules");
                 // start, total_size, single_size
                 let mut reloc_jmprel:(usize,usize,usize)=(0,0,0);
                 let mut reloc_rel:(usize,usize,usize)=(0,0,16);
@@ -284,12 +283,12 @@ impl ModuleManager{
                         }
                     }
                 }
-                println!("[LKM] relocating three sections");
+                info!("[LKM] relocating three sections");
                 let this_module=&(*loaded_minfo) as *const _ as usize;
                 self.reloc_symbols(&elf, reloc_jmprel, base, dynsym_table, this_module);
                 self.reloc_symbols(&elf, reloc_rel, base,dynsym_table, this_module);
                 self.reloc_symbols(&elf, reloc_rela, base,dynsym_table, this_module);
-                println!("[LKM] relocation done. adding module to manager and call init_module");
+                info!("[LKM] relocation done. adding module to manager and call init_module");
                 let mut lkm_entry:usize=0;
                 for exported in loaded_minfo.info.exported_symbols.iter(){
                     for sym in  dynsym_table.iter() {
@@ -310,7 +309,7 @@ impl ModuleManager{
                 // Now everything is done, and the entry can be safely plugged into the vector.
                 self.loaded_modules.push(loaded_minfo);
                 if lkm_entry>0 {
-                    println!("[LKM] calling init_module at {}", lkm_entry);
+                    info!("[LKM] calling init_module at {}", lkm_entry);
                     unsafe{
                         LKM_MANAGER.force_unlock();
                         let init_module:fn()=transmute(lkm_entry);
@@ -449,8 +448,8 @@ impl ModuleManager{
         f(lkmm)
     }
     pub fn init(){
-        assert_has_not_been_called!("[LKM] ModuleManager::init must be called only once");
-        println!("[LKM] Loadable Kernel Module Manager loading...");
+        //assert_has_not_been_called!("[LKM] ModuleManager::init must be called only once");
+        info!("[LKM] Loadable Kernel Module Manager loading...");
         let mut kmm=ModuleManager{
             stub_symbols: ModuleManager::init_stub_symbols(),
             loaded_modules:Vec::new()
@@ -460,39 +459,40 @@ impl ModuleManager{
 
         //let lkmm: Mutex<Option<ModuleManager>>=Mutex::new(None);
         LKM_MANAGER.lock().replace(kmm);
-        println!("[LKM] Loadable Kernel Module Manager loaded!");
+        info!("[LKM] Loadable Kernel Module Manager loaded!");
     }
 }
 
+use crate::syscall::Syscall;
+impl Syscall<'_> {
+    pub fn sys_init_module(&mut self, module_image: *const u8, len: usize, param_values: *const u8) -> SysResult {
+        let mutex = Mutex::new(());
+        for i in 0..10000 {
+            let lock = mutex.lock();
+            let func = Condvar::generateDropper(lock);
+            func();
+        }
 
-pub fn sys_init_module(module_image:*const u8, len: usize, param_values: *const u8)->SysResult{
-    let mutex=Mutex::new(());
-    for i in 0..10000{
 
-        let lock=mutex.lock();
-        let func=Condvar::generateDropper(lock);
-        func();
+        let mut proc = self.process();
+        let modimg=unsafe {self.vm().check_read_array(module_image, len)?};
+        let copied_param_values = unsafe { self.vm().check_and_clone_cstr(param_values)? };
+
+
+        ModuleManager::with(|kmm| {
+            kmm.init_module(modimg, &copied_param_values)
+        })
     }
 
-    use crate::process::process;
-    let mut proc=process();
-    proc.vm.check_read_array(module_image, len)?;
-    let copied_param_values=unsafe {proc.vm.check_and_clone_cstr(param_values)?};
-    let modimg=unsafe {slice::from_raw_parts(module_image, len)};
+    pub fn sys_delete_module(&mut self, module_name: *const u8, flags: u32) -> SysResult {
 
-    ModuleManager::with(|kmm| {
-       kmm.init_module(modimg, &copied_param_values)
-    })
-}
-
-pub fn sys_delete_module(module_name: *const u8, flags: u32)->SysResult{
-    use crate::process::process;
-    let mut proc=process();
-    let copied_modname=unsafe {proc.vm.check_and_clone_cstr(module_name)?};
-    println!("[LKM] Removing module {}", copied_modname);
-    let ret=ModuleManager::with(|kmm| {
-        kmm.delete_module(&copied_modname, flags)
-    });
-    println!("[LKM] Remove module {} done!", copied_modname);
-    ret
+        let mut proc = self.process();
+        let copied_modname = unsafe { self.vm().check_and_clone_cstr(module_name)? };
+        info!("[LKM] Removing module {:?}", copied_modname);
+        let ret = ModuleManager::with(|kmm| {
+            kmm.delete_module(&copied_modname, flags)
+        });
+        info!("[LKM] Remove module {:?} done!", copied_modname);
+        ret
+    }
 }

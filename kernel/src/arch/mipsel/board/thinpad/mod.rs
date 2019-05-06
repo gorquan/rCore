@@ -1,5 +1,4 @@
 use alloc::string::String;
-use once::*;
 
 #[path = "../../../../drivers/console/mod.rs"]
 pub mod console;
@@ -14,7 +13,6 @@ use fb::FramebufferResult;
 
 /// Initialize serial port first
 pub fn init_serial_early() {
-    assert_has_not_been_called!("board::init must be called only once");
     serial::init(0xa3000000);
     println!("Hello ThinPad!");
 }
@@ -23,6 +21,7 @@ pub fn init_serial_early() {
 pub fn init_driver() {
     // TODO: add possibly more drivers
     // timer::init();
+    fb::init();
 }
 
 pub fn probe_fb_info(width: u32, height: u32, depth: u32) -> FramebufferResult {

@@ -13,7 +13,6 @@ use rcore_memory::PAGE_SIZE;
 use volatile::Volatile;
 
 use crate::rcore_fs::dev::BlockDevice;
-
 use crate::drivers::BlockDriver;
 use crate::memory::active_table;
 use crate::sync::SpinNoIrqLock as Mutex;
@@ -224,5 +223,5 @@ pub fn virtio_blk_init(node: &Node) {
 
     let driver = Arc::new(driver);
     DRIVERS.write().push(driver.clone());
-    BLK_DRIVERS.write().push(Arc::new(BlockDriver(driver)));
+    BLK_DRIVERS.write().push(driver);
 }

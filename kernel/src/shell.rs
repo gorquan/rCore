@@ -1,21 +1,52 @@
 //! Kernel shell
 
+
 use crate::drivers::CMDLINE;
 use crate::fs::{INodeExt};
 use crate::process::*;
 use alloc::string::String;
 use alloc::vec::Vec;
 use crate::rcore_fs::vfs::{PathConfig, PathResolveResult};
-#[cfg(not(feature = "run_cmdline"))]
-pub fn run_user_shell() {
+#[cfg(not(any(feature = "run_cmdline", feature = "board_thinpad")))]
+pub fn add_user_shell() {
+    // the busybox of alpine linux can not transfer env vars into child process
+    // Now we use busybox from
+    // https://raw.githubusercontent.com/docker-library/busybox/82bc0333a9ae148fbb4246bcbff1487b3fc0c510/musl/busybox.tar.xz -O busybox.tar.xz
+    // This one can transfer env vars!
+    // Why???
+
+    //    #[cfg(target_arch = "x86_64")]
+    //        let init_shell="/bin/busybox"; // from alpine linux
+    //
+    //    #[cfg(not(target_arch = "x86_64"))]
+    let init_shell = "/busybox"; //from docker-library
+    #[cfg(target_arch = "x86_64")]
+    let init_envs =
+        vec!["PATH=/usr/sbin:/usr/bin:/sbin:/bin:/usr/x86_64-alpine-linux-musl/bin".into()];
+
+    #[cfg(not(target_arch = "x86_64"))]
+    let init_envs = Vec::new();
+    let init_args = vec!["busybox".into(), "ash".into()];
     let root_path=PathConfig::init_root();
     if let Ok(PathResolveResult::IsFile{file: inode,..}) = root_path.path_resolve(&root_path.root, "busybox", true) {
-        let data = inode.inode.read_as_vec().unwrap();
+        processor()
+            .manager()
+            .add(Thread::new_user(&inode.inode, init_args, init_envs, Some(&root_path)));
+    } else {
+        processor().manager().add(Thread::new_kernel(shell, 0));
+    }
+}
+
+#[cfg(feature = "board_thinpad")]
+pub fn add_user_shell() {
+    use crate::fs::INodeExt;
+    let root_path=PathConfig::init_root();
+    if let Ok(PathResolveResult::IsFile{file: inode,..}) = root_path.path_resolve(&root_path.root, "sh", true) {
         processor().manager().add(Thread::new_user(
-            data.as_slice(),
-            vec!["busybox".into(), "sh".into()],
+            &inode.inode,
+            vec!["sh".into()],
             Vec::new(),
-            None
+            Some(&root_path)
         ));
     } else {
         processor().manager().add(Thread::new_kernel(shell, 0));
@@ -23,19 +54,24 @@ pub fn run_user_shell() {
 }
 
 #[cfg(feature = "run_cmdline")]
-pub fn run_user_shell() {
-    let root_path=PathConfig::init_root();
-    let cmdline = CMDLINE.read();
-    if let Ok(PathResolveResult::IsFile{file: inode}) = root_path.path_resolve(&root_path.root, &cmdline, true) {
-        let data = inode.inode.read_as_vec().unwrap();
-        processor()
-            .manager()
-            .add(Thread::new_user(data.as_slice(), cmdline.split(' ').map(|s| s.into()).collect(), Vec::new(), None));
-    }else{
-        panic!("No command line found.");
-    }
 
+pub fn add_user_shell() {
+    use crate::drivers::CMDLINE;
+    let cmdline = CMDLINE.read();
+    let root_path=PathConfig::init_root();
+    if let Ok(PathResolveResult::IsFile{file: inode,..}) = root_path.path_resolve(&root_path.root, "sh", true) {
+        processor().manager().add(Thread::new_user(
+            &inode.inode,
+            cmdline.split(' ').map(|s| s.into()).collect(),
+            Vec::new(),
+            Some(&root_path)
+        ));
+    }else{
+        panic!("cmdline not found");
+    }
 }
+
+
 
 pub extern "C" fn shell(_arg: usize) -> ! {
     let root_path=PathConfig::init_root();
@@ -52,16 +88,14 @@ pub extern "C" fn shell(_arg: usize) -> ! {
 
         let name = cmd.trim().split(' ').next().unwrap();
         if let Ok(PathResolveResult::IsFile{file: inode, ..}) = root_path.path_resolve(&root_path.root, &name, true) {
-            let data = inode.inode.read_as_vec().unwrap();
-            let _pid = processor().manager().add(Thread::new_user(
-                data.as_slice(),
+            let _tid = processor().manager().add(Thread::new_user(
+                &inode.inode,
                 cmd.split(' ').map(|s| s.into()).collect(),
                 Vec::new(),
                 Some(&root_path)
             ));
 
         // TODO: wait until process exits, or use user land shell completely
-        //unsafe { thread::JoinHandle::<()>::_of(pid) }.join().unwrap();
         } else {
             println!("Program not exist");
         }

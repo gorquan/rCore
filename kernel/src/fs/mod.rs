@@ -2,21 +2,25 @@ use alloc::{sync::Arc, vec::Vec};
 
 use crate::rcore_fs::vfs::*;
 use crate::rcore_fs_sfs::SimpleFileSystem;
+use crate::rcore_fs::dev::block_cache::BlockCache;
 
-#[cfg(target_arch = "x86_64")]
-use crate::arch::driver::ide;
+use crate::drivers::BlockDriver;
 
 pub use self::file::*;
 pub use self::file_like::*;
 pub use self::pipe::Pipe;
+
 pub use self::stdio::{STDIN, STDOUT, STDIN_INODE, STDOUT_INODE};
+pub use self::pseudo::*;
 
 mod device;
 mod file;
 mod file_like;
+mod ioctl;
 mod pipe;
+mod pseudo;
 pub mod stdio;
-pub mod tmpfs;
+
 
 /// Hard link user programs
 #[cfg(feature = "link_user")]
@@ -33,42 +37,6 @@ _user_img_end:
 "#
 ));
 
-//TODO: moved to mountfs
-/*
-lazy_static! {
-    /// The root of file system
-    pub static ref ROOT_INODE: Arc<INode> = {
-        #[cfg(not(feature = "link_user"))]
-        let device = {
-            #[cfg(any(target_arch = "riscv32", target_arch = "riscv64", target_arch = "x86_64"))]
-            {
-                crate::drivers::BLK_DRIVERS.read().iter()
-                    .next().expect("Block device not found")
-                    .clone()
-            }
-            #[cfg(target_arch = "aarch64")]
-            {
-                unimplemented!()
-            }
-        };
-        #[cfg(feature = "link_user")]
-        let device = {
-            extern {
-                fn _user_img_start();
-                fn _user_img_end();
-            }
-            info!("SFS linked to kernel, from {:08x} to {:08x}", _user_img_start as usize, _user_img_end as usize);
-            Arc::new(unsafe { device::MemBuf::new(_user_img_start, _user_img_end) })
-        };
-
-        let sfs = SimpleFileSystem::open(device).expect("failed to open SFS");
-        println!("Root inode!");
-        let ri=sfs.root_inode();
-        println!("Root inode get!");
-        ri
-    };
-}
-*/
 
 pub const FOLLOW_MAX_DEPTH: usize = 1;
 
