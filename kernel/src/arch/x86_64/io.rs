@@ -21,7 +21,9 @@ pub fn putfmt(fmt: Arguments) {
     {
         unsafe {
             VGA_WRITER.force_unlock();
+            COM2.force_unlock();
         }
         VGA_WRITER.lock().write_fmt(fmt).unwrap();
+        COM2.lock().write_fmt(fmt).unwrap();
     }
 }

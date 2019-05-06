@@ -67,6 +67,8 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
     //println!("lkm::init");
 
     crate::lkm::manager::ModuleManager::init();
+
+    crate::lkm::cdev::CDevManager::init();
     AP_CAN_INIT.store(true, Ordering::Relaxed);
 
     crate::kmain();

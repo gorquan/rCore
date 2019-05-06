@@ -62,10 +62,14 @@ impl ModuleManager{
         ModuleSymbol{name: String::from(symbol_name), loc: symbol_loc}
     }
     fn init_stub_symbols()->Vec<ModuleSymbol>{
+        use super::ffi::file_operations::lkm_api_register_device;
         vec! [
             export_stub!(lkm_api_pong),
             export_stub!(lkm_api_debug),
-            export_stub!(lkm_api_query_symbol)
+            export_stub!(lkm_api_query_symbol),
+            export_stub!(lkm_api_register_device),
+            export_stub!(lkm_api_kmalloc),
+            export_stub!(lkm_api_kfree)
         ]
     }
     pub fn resolve_symbol(&self, symbol: &str)->Option<usize>{

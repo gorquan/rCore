@@ -9,6 +9,7 @@
 #![feature(const_str_len)]
 #![feature(slice_concat_ext)]
 #![feature(arbitrary_self_types)]
+#![deny(unused_must_use)]
 #![no_std]
 
 // just keep it ...
@@ -25,6 +26,8 @@ use rcore_thread::std_thread as thread;
 
 #[macro_use] // print!
 mod logging;
+#[macro_use]
+mod util;
 mod backtrace;
 mod consts;
 mod drivers;
@@ -38,9 +41,9 @@ mod sync;
 mod syscall;
 mod trap;
 mod lkm;
-mod util;
 mod rcore_fs;
 mod rcore_fs_sfs;
+
 #[allow(dead_code)]
 #[cfg(target_arch = "x86_64")]
 #[path = "arch/x86_64/mod.rs"]

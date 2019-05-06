@@ -16,7 +16,7 @@ use crate::arch::interrupt::{Context, TrapFrame};
 use crate::fs::{FileHandle, FileLike, INodeExt, OpenOptions, FOLLOW_MAX_DEPTH};
 use crate::rcore_fs::vfs::PathConfig;
 use crate::memory::{ByFrame, GlobalFrameAlloc, KernelStack, MemoryAttr, MemorySet};
-use crate::net::{Socket, SOCKETS};
+use crate::net::SOCKETS;
 use crate::sync::{Condvar, SpinNoIrqLock as Mutex};
 use crate::rcore_fs::vfs::INodeContainer;
 use super::abi::{self, ProcInitInfo};
@@ -125,24 +125,13 @@ impl rcore_thread::Context for Thread {
 
 impl Thread {
     /// Make a struct for the init thread
-    /// TODO: remove this, we only need `Context::null()`
     pub unsafe fn new_init() -> Box<Thread> {
         Box::new(Thread {
             context: Context::null(),
             kstack: KernelStack::new(),
             clear_child_tid: 0,
-            proc: Arc::new(Mutex::new(Process {
-                vm: MemorySet::new(),
-                files: BTreeMap::default(),
-                cwd: PathConfig::init_root(),
-                futexes: BTreeMap::default(),
-                pid: Pid::uninitialized(),
-                parent: None,
-                children: Vec::new(),
-                threads: Vec::new(),
-                child_exit: Arc::new(Condvar::new()),
-                child_exit_code: BTreeMap::new(),
-            })),
+            // safety: this field will never be used
+            proc: core::mem::uninitialized(),
         })
     }
 
@@ -170,17 +159,15 @@ impl Thread {
         })
     }
 
-    /// Make a new user process from ELF `data`
-    pub fn new_user<'a, Iter>(data: &[u8], args: Iter, ld_search_path: Option<&PathConfig>) -> Box<Thread>
-    where
-        Iter: Iterator<Item = &'a str>,
-    {
+    // TODO: use aux to load executable by kernel, so that exec_path can be thrown away.
+    pub fn new_user(
+        data: &[u8],
+        mut args: Vec<String>,
+        envs: Vec<String>,
+        ld_search_path: Option<&PathConfig>
+    ) -> Box<Thread> {
         // Parse ELF
         let elf = ElfFile::new(data).expect("failed to read elf");
-        let is32 = match elf.header.pt2 {
-            header::HeaderPt2::Header32(_) => true,
-            header::HeaderPt2::Header64(_) => false,
-        };
 
         // Check ELF type
         match elf.header.pt2.type_().as_type() {
@@ -189,29 +176,43 @@ impl Thread {
             _ => panic!("ELF is not executable or shared object"),
         }
         use crate::rcore_fs::vfs::PathResolveResult;
-        // Check interpreter
+
+        // Check ELF arch
+        match elf.header.pt2.machine().as_machine() {
+            #[cfg(target_arch = "x86_64")]
+            header::Machine::X86_64 => {}
+            #[cfg(target_arch = "aarch64")]
+            header::Machine::AArch64 => {}
+            #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
+            header::Machine::Other(243) => {}
+            #[cfg(target_arch = "mips")]
+            header::Machine::Mips => {}
+            machine @ _ => panic!("invalid elf arch: {:?}", machine),
+        }
+        let mut dyn_elf=None;
+        // Check interpreter (for dynamic link)
         if let Ok(loader_path) = elf.get_interpreter() {
-            // Must give a start point for search!
-            // For init process, this should not happen.
-            if let Some(path_selector)=ld_search_path{
+            // assuming absolute path
+            if let Some(path_selector)=ld_search_path {
                 if let Ok(PathResolveResult::IsFile {file, ..})=path_selector.path_resolve(&path_selector.root, loader_path, true){
-                //if let Ok(inode) = crate::fs::ROOT_INODE.lookup_follow(loader_path, FOLLOW_MAX_DEPTH) {
                     if let Ok(buf) = file.inode.read_as_vec() {
-                        debug!("using loader {}", &loader_path);
                         // Elf loader should not have INTERP
                         // No infinite loop
-                        let mut new_args: Vec<&str> = args.collect();
-                        new_args.insert(0, loader_path);
-                        //TODO: kernel should load the program into memory, instead of doing it by loader.
-                        return Thread::new_user(buf.as_slice(), new_args.into_iter(), ld_search_path);
+                        dyn_elf=Some(ElfFile::new(&buf).expect("failed to read elf"));
+
+                        unimplemented!();
+                        info!("loader args: {:?}", args);
+                        //TODO: Use aux magic to load the binary first.
+                        //unimplemented!();
+                        //return Thread::new_user(buf.as_slice(), exec_path, args, envs);
                     } else {
-                        warn!("loader specified as {} but failed to read", &loader_path);
+                        warn!("loader specified as {} but not found", &loader_path);
                     }
                 } else {
-                    warn!("loader specified as {} but not found", &loader_path);
+                    warn!("loader required, but no ld_search_path specified. This means you are launching user process without a filesystem.");
                 }
             }else{
-                warn!("loader required, but no ld_search_path specified. This means you are launching user process without a filesystem.");
+                warn!("loader specified as {} but ld_search not provided", &loader_path);
             }
         }
 
@@ -219,12 +220,10 @@ impl Thread {
         let mut vm = elf.make_memory_set();
 
         // User stack
-        use crate::consts::{USER32_STACK_OFFSET, USER_STACK_OFFSET, USER_STACK_SIZE};
+        use crate::consts::{USER_STACK_OFFSET, USER_STACK_SIZE};
         let mut ustack_top = {
-            let (ustack_buttom, ustack_top) = match is32 {
-                true => (USER32_STACK_OFFSET, USER32_STACK_OFFSET + USER_STACK_SIZE),
-                false => (USER_STACK_OFFSET, USER_STACK_OFFSET + USER_STACK_SIZE),
-            };
+            let ustack_buttom = USER_STACK_OFFSET;
+            let ustack_top = USER_STACK_OFFSET + USER_STACK_SIZE;
             vm.push(
                 ustack_buttom,
                 ustack_top,
@@ -234,11 +233,13 @@ impl Thread {
             );
             ustack_top
         };
+        if let Some(ldso)=dyn_elf.as_ref(){
 
+        }
         // Make init info
         let init_info = ProcInitInfo {
-            args: args.map(|s| String::from(s)).collect(),
-            envs: BTreeMap::new(),
+            args,
+            envs,
             auxv: {
                 let mut map = BTreeMap::new();
                 if let Some(phdr_vaddr) = elf.get_phdr_vaddr() {
@@ -297,7 +298,7 @@ impl Thread {
 
         Box::new(Thread {
             context: unsafe {
-                Context::new_user_thread(entry_addr, ustack_top, kstack.top(), is32, vm.token())
+                Context::new_user_thread(entry_addr, ustack_top, kstack.top(), vm.token())
             },
             kstack,
             clear_child_tid: 0,
@@ -445,7 +446,7 @@ impl ElfExt for ElfFile<'_> {
                     virt_addr + mem_size,
                     ph.flags().to_attr(),
                     ByFrame::new(GlobalFrameAlloc),
-                    "",
+                    "elf",
                 );
                 unsafe { ::core::slice::from_raw_parts_mut(virt_addr as *mut u8, mem_size) }
             };

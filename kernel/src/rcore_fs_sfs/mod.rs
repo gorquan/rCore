@@ -15,7 +15,7 @@ use core::any::Any;
 use core::fmt::{Debug, Error, Formatter};
 use core::mem::uninitialized;
 
-use bitvec::BitVec;
+use bitvec::vec::BitVec;
 use spin::RwLock;
 
 use crate::rcore_fs::dev::Device;
@@ -400,6 +400,7 @@ impl vfs::INode for INodeImpl {
     }
     /// the size returned here is logical size(entry num for directory), not the disk space used.
     fn metadata(&self) -> vfs::Result<vfs::Metadata> {
+
         let disk_inode = self.disk_inode.read();
         Ok(vfs::Metadata {
             dev: 0,
@@ -425,10 +426,7 @@ impl vfs::INode for INodeImpl {
         })
     }
 
-    fn chmod(&self, _mode: u16) -> vfs::Result<()> {
-        // No-op for sfs
-        Ok(())
-    }
+
 
     fn setrdev(&self, dev:u64)->vfs::Result<()>{
         let mut disk_inode=self.disk_inode.write();
@@ -657,6 +655,22 @@ impl vfs::INode for INodeImpl {
     fn as_any_ref(&self) -> &Any {
         self
     }
+
+    fn poll(&self) -> vfs::Result<vfs::PollStatus> {
+        Ok(vfs::PollStatus {
+            read: true,
+            write: true,
+            error: false,
+        })
+    }
+    fn set_metadata(&self, _metadata: &vfs::Metadata) -> vfs::Result<()> {
+        // No-op for sfs
+        Ok(())
+    }
+    fn io_control(&self, _cmd: u32, _data: usize) -> vfs::Result<()> {
+        Err(FsError::NotSupported)
+    }
+
 }
 
 impl Drop for INodeImpl {
@@ -814,7 +828,6 @@ impl SimpleFileSystem {
     /// ** Must ensure it's a valid INode **
     fn get_inode(&self, id: INodeId) -> Arc<INodeImpl> {
         assert!(!self.free_map.read()[id]);
-
         // In the BTreeSet and not weak.
         if let Some(inode) = self.inodes.read().get(&id) {
             if let Some(inode) = inode.upgrade() {

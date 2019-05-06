@@ -6,35 +6,65 @@ use core::str;
 
 /// Abstract operations on a inode.
 pub trait INode: Any + Sync + Send {
+    /// Read bytes at `offset` into `buf`, return the number of bytes read.
     fn read_at(&self, offset: usize, buf: &mut [u8]) -> Result<usize>;
+
+    /// Write bytes at `offset` from `buf`, return the number of bytes written.
     fn write_at(&self, offset: usize, buf: &[u8]) -> Result<usize>;
+
+    /// Poll the events, return a bitmap of events.
+    fn poll(&self) -> Result<PollStatus>;
+
+    /// Get metadata of the INode
     fn metadata(&self) -> Result<Metadata>;
-    fn chmod(&self, mode: u16) -> Result<()>;
+
+    /// Set metadata of the INode
+    fn set_metadata(&self, metadata: &Metadata) -> Result<()>;
+
     /// Sync all data and metadata
     fn sync_all(&self) -> Result<()>;
+
     /// Sync data (not include metadata)
     fn sync_data(&self) -> Result<()>;
+
+    /// Resize the file
     fn resize(&self, len: usize) -> Result<()>;
+
+    /// Create a new INode in the directory
     fn create(&self, name: &str, type_: FileType, mode: u32) -> Result<Arc<INode>>;
-    fn setrdev(&self, dev:u64)->Result<()>{
-        unimplemented!()
-    }
-    fn unlink(&self, name: &str) -> Result<()>;
-    /// user of the vfs api should call borrow_mut by itself
+
+    /// Create a hard link `name` to `other`
     fn link(&self, name: &str, other: &Arc<INode>) -> Result<()>;
+
+    /// Delete a hard link `name`
+    fn unlink(&self, name: &str) -> Result<()>;
+
     /// Move INode `self/old_name` to `target/new_name`.
     /// If `target` equals `self`, do rename.
     fn move_(&self, old_name: &str, target: &Arc<INode>, new_name: &str) -> Result<()>;
-    /// lookup with only one layer
+
+    /// Find the INode `name` in the directory
     fn find(&self, name: &str) -> Result<Arc<INode>>;
-    /// like list()[id]
-    /// only get one item in list, often faster than list
+
+    /// Get the name of directory entry
     fn get_entry(&self, id: usize) -> Result<String>;
-    //    fn io_ctrl(&mut self, op: u32, data: &[u8]) -> Result<()>;
+
+    /// Control device
+    fn io_control(&self, cmd: u32, data: usize) -> Result<()>;
+
+    /// Get the file system of the INode
     fn fs(&self) -> Arc<FileSystem>;
-    /// this is used to implement dynamics cast
-    /// simply return self in the implement of the function
+
+    /// This is used to implement dynamics cast.
+    /// Simply return self in the implement of the function.
     fn as_any_ref(&self) -> &Any;
+
+    // Stub implementation for setting an rdev.
+    // This is ensured to be called after create.
+    fn setrdev(&self, dev:u64)->Result<()>{
+        unimplemented!()
+    }
+
 }
 
 impl INode {
@@ -48,75 +78,14 @@ impl INode {
         }
         (0..info.size).map(|i| self.get_entry(i)).collect()
     }
-/*
-    /// Lookup path from current INode, and do not follow symlinks
-    pub fn lookup(&self, path: &str) -> Result<Arc<INode>> {
-        self.lookup_follow(path, 0)
-    }
 
-    /// Lookup path from current INode, and follow symlinks at most `follow_times` times
-    pub fn lookup_follow(&self, path: &str, mut follow_times: usize) -> Result<Arc<INode>> {
-        if self.metadata()?.type_ != FileType::Dir {
-            return Err(FsError::NotDir);
-        }
-
-        let mut result = self.find(".")?;
-        let mut rest_path = String::from(path);
-        while rest_path != "" {
-            if result.metadata()?.type_ != FileType::Dir {
-                return Err(FsError::NotDir);
-            }
-            // handle absolute path
-            if let Some('/') = rest_path.chars().next() {
-                result = self.fs().root_inode();
-                rest_path = String::from(&rest_path[1..]);
-                continue;
-            }
-            let name;
-            match rest_path.find('/') {
-                None => {
-                    name = rest_path;
-                    rest_path = String::new();
-                }
-                Some(pos) => {
-                    name = String::from(&rest_path[0..pos]);
-                    rest_path = String::from(&rest_path[pos + 1..]);
-                }
-            };
-            match result.find(&name) {
-                Err(error) => return Err(error),
-                Ok(inode) => {
-                    // Handle symlink
-                    if inode.metadata()?.type_ == FileType::SymLink && follow_times > 0 {
-                        follow_times -= 1;
-                        let mut content = [0u8; 256];
-                        let len = inode.read_at(0, &mut content)?;
-                        if let Ok(path) = str::from_utf8(&content[..len]) {
-                            // result remains unchanged
-                            rest_path = {
-                                let mut new_path = String::from(path);
-                                if let Some('/') = new_path.chars().last() {
-                                    new_path += &rest_path;
-                                } else {
-                                    new_path += "/";
-                                    new_path += &rest_path;
-                                }
-                                new_path
-                            };
-                        } else {
-                            return Err(FsError::NotDir);
-                        }
-                    } else {
-                        result = inode
-                    }
-                }
-            };
-        }
-        Ok(result)
-    }
-    */
 }
-
+#[derive(Debug, Default)]
+pub struct PollStatus {
+    pub read: bool,
+    pub write: bool,
+    pub error: bool,
+}
 /// Metadata of INode
 ///
 /// Ref: [http://pubs.opengroup.org/onlinepubs/009604499/basedefs/sys/stat.h.html]
@@ -155,6 +124,7 @@ pub struct Metadata {
     pub uid: usize,
     /// Group ID
     pub gid: usize,
+    // Currently we use two u32 to store the rdev on sfs.
     pub rdev: u64
 }
 
@@ -215,7 +185,8 @@ pub enum FsError {
     DirNotEmpty,   //E_NOTEMPTY
     WrongFs,       //E_INVAL, when we find the content on disk is wrong when opening the device
     DeviceError,
-    SymLoop        //E_LOOP, too many symlink follows.
+    SymLoop,        //E_LOOP, too many symlink follows.
+    NoDevice //E_NXIO
 }
 
 impl fmt::Display for FsError {
@@ -236,6 +207,7 @@ pub trait FileSystem: Sync+Send {
     fn info(&self) -> FsInfo;
     // TODO: good ways to force attribute? For example, a filesystem must contain an owner attribute pointing to a module.
 }
+
 use alloc::collections::btree_map::*;
 use core::sync::*;
 use once::*;
@@ -282,7 +254,7 @@ impl VirtualFS{
         let sfs= {
             #[cfg(not(feature = "link_user"))]
                 let device = {
-                #[cfg(any(target_arch = "riscv32", target_arch = "riscv64", target_arch = "x86_64"))]
+                #[cfg(any(target_a = "riscv32", target_arch = "riscv64", target_arch = "x86_64"))]
                     {
                         crate::drivers::BLK_DRIVERS.read().iter()
                             .next().expect("Block device not found")
@@ -342,7 +314,8 @@ pub enum PathResolveResult{
     IsFile{ // If it is a file, its parent must have been touched.
             // This is also returned for further symbol resolving, since resolving symbol needs parent directory.
         file: Arc<INodeContainer>,
-        parent: Arc<INodeContainer>
+        parent: Arc<INodeContainer>,
+        name: String
     },
     NotExist{ // If it is not found, its parent must have been touched. This is useful when dealing with syscalls like creat or rename.
         parent: Arc<INodeContainer>,
@@ -365,7 +338,7 @@ impl PathConfig{
         let depth_counter=10;
         let r=self.resolvePath(cwd, path, &mut follow_counter, depth_counter)?;
         if resolve_last_symbol{
-            if let PathResolveResult::IsFile {file, parent}=r{
+            if let PathResolveResult::IsFile {file, parent, ..}=r{
                 self.resolveSymbolRecursively(&parent,  &file, &mut follow_counter, depth_counter)
             }else{
                 Ok(r)
@@ -432,7 +405,8 @@ impl PathConfig{
                 }else{
                     Ok(PathResolveResult::IsFile {
                         parent: cwd,
-                        file: next
+                        file: next,
+                        name: String::from(*last_part)
                     })
                 }
             }
@@ -469,19 +443,20 @@ impl PathConfig{
     pub fn resolveSymbolRecursively(&self, cwd: &Arc<INodeContainer>, symbol: &Arc<INodeContainer>, follow_counter: &mut usize, depth_counter: usize)->Result<PathResolveResult>{
         let mut current_symbol_dir=Arc::clone(cwd);
         let mut current_symbol=Arc::clone(symbol);
+        let mut current_name=String::new();
         while current_symbol.inode.metadata().unwrap().type_==FileType::SymLink{
             let resolve_result=self.resolveSymbol(&current_symbol_dir, &current_symbol, follow_counter, depth_counter)?;
             match resolve_result{
                 PathResolveResult::NotExist{..}=>{return Ok(resolve_result);}
                 PathResolveResult::IsDir {..}=>{return Ok(resolve_result);}
-                PathResolveResult::IsFile {file, parent}=>{current_symbol=file; current_symbol_dir=parent;}
+                PathResolveResult::IsFile {file, parent, name}=>{current_symbol=file; current_symbol_dir=parent;current_name=name;}
             }
         }
         if current_symbol.inode.metadata().unwrap().type_==FileType::Dir{
             Ok(PathResolveResult::IsDir {dir: current_symbol})
 
         }else{
-            Ok(PathResolveResult::IsFile {file: current_symbol, parent: current_symbol_dir})
+            Ok(PathResolveResult::IsFile {file: current_symbol, parent: current_symbol_dir, name: current_name})
         }
     }
     pub fn hasReachedRoot(&self, current: &Arc<INodeContainer>)->bool{
