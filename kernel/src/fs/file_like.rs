@@ -3,16 +3,16 @@ use core::fmt;
 use super::ioctl::*;
 use super::FileHandle;
 use crate::net::Socket;
+use crate::rcore_fs::vfs::PollStatus;
 use crate::syscall::{SysError, SysResult};
 use alloc::boxed::Box;
-use crate::rcore_fs::vfs::PollStatus;
 
 // TODO: merge FileLike to FileHandle ?
 // TODO: fix dup and remove Clone
 #[derive(Clone)]
 pub enum FileLike {
     File(FileHandle),
-    Socket(Box<dyn Socket>)
+    Socket(Box<dyn Socket>),
 }
 
 impl FileLike {

@@ -110,7 +110,13 @@ impl Syscall<'_> {
         }
     }
 
-    pub fn sys_reboot(&mut self, _magic: u32, _magic2: u32, cmd: u32, _arg: *const u8) -> SysResult {
+    pub fn sys_reboot(
+        &mut self,
+        _magic: u32,
+        _magic2: u32,
+        cmd: u32,
+        _arg: *const u8,
+    ) -> SysResult {
         // we will skip verifying magic
         if cmd == LINUX_REBOOT_CMD_HALT {
             unsafe {

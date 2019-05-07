@@ -220,7 +220,7 @@ pub enum FileType {
     File = 1,
     Dir = 2,
     SymLink = 3,
-    CharDevice = 4
+    CharDevice = 4,
 }
 
 //const_assert!(o1; size_of::<SuperBlock>() <= BLKSIZE);

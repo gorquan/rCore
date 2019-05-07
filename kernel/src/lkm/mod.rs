@@ -1,9 +1,9 @@
-pub mod manager;
-pub mod loader;
 pub mod api;
-pub mod structs;
+pub mod cdev;
+pub mod ffi;
+pub mod hello_device;
 pub mod kernelvm;
 pub mod list_manager;
-pub mod cdev;
-pub mod hello_device;
-pub mod ffi;
+pub mod loader;
+pub mod manager;
+pub mod structs;

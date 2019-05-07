@@ -1,16 +1,16 @@
+use super::ipi::IPIEventItem;
 use alloc::boxed::Box;
 use alloc::vec::*;
-use x86_64::{PrivilegeLevel, VirtAddr};
+use core::sync::atomic::{AtomicBool, Ordering};
+use x86_64::registers::model_specific::Msr;
 use x86_64::structures::gdt::*;
 use x86_64::structures::tss::TaskStateSegment;
-use x86_64::registers::model_specific::Msr;
-use core::sync::atomic::{AtomicBool, Ordering};
-use super::ipi::IPIEventItem;
+use x86_64::{PrivilegeLevel, VirtAddr};
 
 use crate::consts::MAX_CPU_NUM;
-use crate::sync::{SpinLock as Mutex, Semaphore};
-use core::slice::Iter;
+use crate::sync::{Semaphore, SpinLock as Mutex};
 use core::borrow::BorrowMut;
+use core::slice::Iter;
 
 /// Init TSS & GDT.
 pub fn init() {
@@ -43,7 +43,7 @@ pub struct Cpu {
     double_fault_stack: [u8; 0x100],
     preemption_disabled: AtomicBool, //TODO: check this on timer(). This is currently unavailable since related code is in rcore_thread.
     ipi_handler_queue: Mutex<Vec<IPIEventItem>>,
-    id: usize
+    id: usize,
 }
 
 impl Cpu {
@@ -53,48 +53,49 @@ impl Cpu {
             tss: TaskStateSegment::new(),
             double_fault_stack: [0u8; 0x100],
             preemption_disabled: AtomicBool::new(false),
-            ipi_handler_queue:Mutex::new(vec![]),
-            id: 0
+            ipi_handler_queue: Mutex::new(vec![]),
+            id: 0,
         }
     }
 
-    pub fn foreach<F>(mut f: F)->()where F: FnMut(&mut Cpu)->(){
-        unsafe{
-            let iter=CPUS.iter_mut().filter(|maybe_cpu|{maybe_cpu.is_some()});
-            for cpu in iter{
-                let cpu_ref=cpu.as_mut().unwrap();
+    pub fn foreach<F>(mut f: F) -> ()
+    where
+        F: FnMut(&mut Cpu) -> (),
+    {
+        unsafe {
+            let iter = CPUS.iter_mut().filter(|maybe_cpu| maybe_cpu.is_some());
+            for cpu in iter {
+                let cpu_ref = cpu.as_mut().unwrap();
                 f(cpu_ref)
             }
         }
     }
-    pub fn get_id(&self)->usize{
+    pub fn get_id(&self) -> usize {
         self.id
     }
-    pub fn notify_event(&mut self, item: IPIEventItem){
-        let mut queue=self.ipi_handler_queue.lock();
+    pub fn notify_event(&mut self, item: IPIEventItem) {
+        let mut queue = self.ipi_handler_queue.lock();
         queue.push(item);
     }
-    pub fn current()->&'static mut Cpu{
-        unsafe {CPUS[super::cpu::id()].as_mut().unwrap()}
+    pub fn current() -> &'static mut Cpu {
+        unsafe { CPUS[super::cpu::id()].as_mut().unwrap() }
     }
-    pub fn ipi_handler(&mut self){
-
-        let mut queue=self.ipi_handler_queue.lock();
-        let mut current_events:Vec<IPIEventItem>=vec![];
+    pub fn ipi_handler(&mut self) {
+        let mut queue = self.ipi_handler_queue.lock();
+        let mut current_events: Vec<IPIEventItem> = vec![];
         ::core::mem::swap(&mut current_events, queue.as_mut());
         drop(queue);
-        for ev in current_events.iter(){
-
+        for ev in current_events.iter() {
             ev.call();
         }
     }
-    pub fn disable_preemption(&self)->bool{
+    pub fn disable_preemption(&self) -> bool {
         self.preemption_disabled.swap(true, Ordering::Relaxed)
     }
-    pub fn restore_preemption(&self, val:bool){
+    pub fn restore_preemption(&self, val: bool) {
         self.preemption_disabled.store(val, Ordering::Relaxed);
     }
-    pub fn can_preempt(&self)->bool{
+    pub fn can_preempt(&self) -> bool {
         self.preemption_disabled.load(Ordering::Relaxed)
     }
     unsafe fn init(&'static mut self) {
@@ -113,7 +114,7 @@ impl Cpu {
         self.gdt.add_entry(UCODE);
         self.gdt.add_entry(Descriptor::tss_segment(&self.tss));
         self.gdt.load();
-        self.id=super::cpu::id();
+        self.id = super::cpu::id();
         // reload code segment register
         set_cs(KCODE_SELECTOR);
         // load TSS
@@ -124,7 +125,7 @@ impl Cpu {
     }
 }
 
-pub const DOUBLE_FAULT_IST_INDEX:  usize = 0;
+pub const DOUBLE_FAULT_IST_INDEX: usize = 0;
 
 // Copied from xv6 x86_64
 const KCODE: Descriptor = Descriptor::UserSegment(0x0020980000000000); // EXECUTABLE | USER_SEGMENT | PRESENT | LONG_MODE

@@ -217,7 +217,6 @@ pub fn init() {
         init_driver(&dev);
         // Instead of initializing the drivers instantly, we first add it to the Device-Manager.
         // In the following steps it can be taken over by some kernel module.
-
     }
 }
 

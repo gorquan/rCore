@@ -12,9 +12,9 @@ use rcore_memory::paging::PageTable;
 use rcore_memory::PAGE_SIZE;
 use volatile::Volatile;
 
-use crate::rcore_fs::dev::BlockDevice;
 use crate::drivers::BlockDriver;
 use crate::memory::active_table;
+use crate::rcore_fs::dev::BlockDevice;
 use crate::sync::SpinNoIrqLock as Mutex;
 
 use super::super::bus::virtio_mmio::*;

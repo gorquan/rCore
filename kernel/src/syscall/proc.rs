@@ -174,17 +174,22 @@ impl Syscall<'_> {
 
         // Read program file
         let path = args[0].as_str();
-        let ppath=String::from(path);
+        let ppath = String::from(path);
         use crate::rcore_fs::vfs::PathResolveResult;
-        let inode=match proc.cwd.path_resolve(&proc.cwd.cwd, path, true)?{
-            PathResolveResult::IsFile {file,..}=>Arc::clone(&file.inode),
-            PathResolveResult::IsDir{..}=>{return Err(SysError::EISDIR);}
-            PathResolveResult::NotExist {..}=>{return Err(SysError::ENOENT);}
+        let inode = match proc.cwd.path_resolve(&proc.cwd.cwd, path, true)? {
+            PathResolveResult::IsFile { file, .. } => Arc::clone(&file.inode),
+            PathResolveResult::IsDir { .. } => {
+                return Err(SysError::EISDIR);
+            }
+            PathResolveResult::NotExist { .. } => {
+                return Err(SysError::ENOENT);
+            }
         };
 
         // Make new Thread
         let (mut vm, entry_addr, ustack_top) =
-            Thread::new_user_vm(&inode, args, envs, Some(&proc.cwd)).map_err(|_| SysError::EINVAL)?;
+            Thread::new_user_vm(&inode, args, envs, Some(&proc.cwd))
+                .map_err(|_| SysError::EINVAL)?;
 
         // Activate new page table
         core::mem::swap(&mut *self.vm(), &mut vm);
@@ -205,7 +210,6 @@ impl Syscall<'_> {
         thread::yield_now();
         Ok(0)
     }
-
 
     /// Kill the process
     pub fn sys_kill(&mut self, pid: usize, sig: usize) -> SysResult {

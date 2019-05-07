@@ -33,16 +33,16 @@ mod consts;
 mod drivers;
 mod fs;
 mod lang;
+mod lkm;
 mod memory;
 mod net;
 mod process;
+mod rcore_fs;
+mod rcore_fs_sfs;
 mod shell;
 mod sync;
 mod syscall;
 mod trap;
-mod lkm;
-mod rcore_fs;
-mod rcore_fs_sfs;
 
 #[allow(dead_code)]
 #[cfg(target_arch = "x86_64")]

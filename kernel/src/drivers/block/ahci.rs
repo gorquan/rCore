@@ -5,11 +5,10 @@
 use alloc::string::String;
 use alloc::sync::Arc;
 
-
+use crate::rcore_fs::dev::BlockDevice;
 use bit_field::*;
 use bitflags::*;
 use log::*;
-use crate::rcore_fs::dev::BlockDevice;
 use volatile::Volatile;
 
 use rcore_memory::paging::PageTable;

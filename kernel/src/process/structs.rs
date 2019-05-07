@@ -15,17 +15,17 @@ use xmas_elf::{
 use crate::arch::interrupt::{Context, TrapFrame};
 
 use crate::fs::{FileHandle, FileLike, INodeExt, OpenOptions, FOLLOW_MAX_DEPTH};
-use crate::rcore_fs::vfs::PathConfig;
 use crate::memory::{
     ByFrame, Delay, File, GlobalFrameAlloc, KernelStack, MemoryAttr, MemorySet, Read,
 };
 use crate::net::SOCKETS;
+use crate::rcore_fs::vfs::PathConfig;
 
-use crate::sync::{Condvar, SpinNoIrqLock as Mutex};
-use crate::rcore_fs::vfs::INodeContainer;
 use super::abi::{self, ProcInitInfo};
-use core::mem::uninitialized;
 use crate::rcore_fs::vfs::INode;
+use crate::rcore_fs::vfs::INodeContainer;
+use crate::sync::{Condvar, SpinNoIrqLock as Mutex};
+use core::mem::uninitialized;
 
 pub struct Thread {
     context: Context,
@@ -143,7 +143,7 @@ impl Thread {
         inode: &Arc<INode>,
         mut args: Vec<String>,
         envs: Vec<String>,
-        ld_search_path: Option<&PathConfig>
+        ld_search_path: Option<&PathConfig>,
     ) -> Result<(MemorySet, usize, usize), &'static str> {
         // Read ELF header
         // 0x3c0: magic number from ld-musl.so
@@ -175,12 +175,13 @@ impl Thread {
             header::Machine::Mips => {}
             _ => return Err("invalid ELF arch"),
         }
-        let mut dyn_elf: Option<ElfFile>=None;
+        let mut dyn_elf: Option<ElfFile> = None;
         // Check interpreter (for dynamic link)
         if let Ok(loader_path) = elf.get_interpreter() {
             // assuming absolute path
-            let wd=ld_search_path.unwrap();
-            let inode = wd.path_resolve(&wd.cwd, loader_path, true)
+            let wd = ld_search_path.unwrap();
+            let inode = wd
+                .path_resolve(&wd.cwd, loader_path, true)
                 .map_err(|_| "interpreter not found")?;
             // modify args for loader
             args[0] = String::from("(unimplemented)");
@@ -218,9 +219,7 @@ impl Thread {
             );
             ustack_top
         };
-        if let Some(ldso)=dyn_elf.as_ref(){
-
-        }
+        if let Some(ldso) = dyn_elf.as_ref() {}
         // Make init info
         let init_info = ProcInitInfo {
             args,
@@ -251,9 +250,10 @@ impl Thread {
         inode: &Arc<INode>,
         args: Vec<String>,
         envs: Vec<String>,
-        ld_search_path: Option<&PathConfig>
+        ld_search_path: Option<&PathConfig>,
     ) -> Box<Thread> {
-        let (vm, entry_addr, ustack_top) = Self::new_user_vm(inode, args, envs, ld_search_path).unwrap();
+        let (vm, entry_addr, ustack_top) =
+            Self::new_user_vm(inode, args, envs, ld_search_path).unwrap();
 
         let vm_token = vm.token();
         let vm = Arc::new(Mutex::new(vm));
@@ -268,7 +268,7 @@ impl Thread {
                     read: true,
                     write: false,
                     append: false,
-                }
+                },
             )),
         );
         files.insert(
@@ -279,7 +279,7 @@ impl Thread {
                     read: false,
                     write: true,
                     append: false,
-                }
+                },
             )),
         );
         files.insert(
@@ -290,7 +290,7 @@ impl Thread {
                     read: false,
                     write: true,
                     append: false,
-                }
+                },
             )),
         );
 
@@ -406,7 +406,6 @@ impl Process {
         }
         self.futexes.get(&uaddr).unwrap().clone()
     }
-
 }
 
 trait ToMemoryAttr {

@@ -10,7 +10,6 @@ use crate::sync::Condvar;
 
 use crate::rcore_fs::dev::{self, BlockDevice, DevError};
 
-
 #[allow(dead_code)]
 pub mod block;
 #[allow(dead_code)]

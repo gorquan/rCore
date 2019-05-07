@@ -1,7 +1,7 @@
 //! Implement Device
 
-use crate::rcore_fs::dev::{self, DevError, Result, Device, BlockDevice};
-use crate::rcore_fs::vfs::{self};
+use crate::rcore_fs::dev::{self, BlockDevice, DevError, Device, Result};
+use crate::rcore_fs::vfs;
 use spin::RwLock;
 
 #[cfg(target_arch = "x86_64")]

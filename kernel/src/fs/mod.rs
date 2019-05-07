@@ -1,8 +1,8 @@
 use alloc::{sync::Arc, vec::Vec};
 
+use crate::rcore_fs::dev::block_cache::BlockCache;
 use crate::rcore_fs::vfs::*;
 use crate::rcore_fs_sfs::SimpleFileSystem;
-use crate::rcore_fs::dev::block_cache::BlockCache;
 
 use crate::drivers::BlockDriver;
 
@@ -10,8 +10,8 @@ pub use self::file::*;
 pub use self::file_like::*;
 pub use self::pipe::Pipe;
 
-pub use self::stdio::{STDIN, STDOUT, STDIN_INODE, STDOUT_INODE};
 pub use self::pseudo::*;
+pub use self::stdio::{STDIN, STDIN_INODE, STDOUT, STDOUT_INODE};
 
 mod device;
 mod file;
@@ -20,7 +20,6 @@ mod ioctl;
 mod pipe;
 mod pseudo;
 pub mod stdio;
-
 
 /// Hard link user programs
 #[cfg(feature = "link_user")]
@@ -36,7 +35,6 @@ _user_img_start:
 _user_img_end:
 "#
 ));
-
 
 pub const FOLLOW_MAX_DEPTH: usize = 1;
 
@@ -55,4 +53,3 @@ impl INodeExt for INode {
         Ok(buf)
     }
 }
-

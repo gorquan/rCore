@@ -18,7 +18,7 @@ use core::mem::uninitialized;
 use bitvec::prelude::BitVec;
 use spin::RwLock;
 
-use crate::rcore_fs::dev::{Device, DevError};
+use crate::rcore_fs::dev::{DevError, Device};
 use crate::rcore_fs::dirty::Dirty;
 use crate::rcore_fs::util::*;
 use crate::rcore_fs::vfs::{self, FileSystem, FsError, INode, Timespec};
@@ -313,8 +313,8 @@ impl INodeImpl {
     // Note: the _\w*_at method always return begin>size?0:begin<end?0:(min(size,end)-begin) when success
     /// Read/Write content, no matter what type it is
     fn _io_at<F>(&self, begin: usize, end: usize, mut f: F) -> vfs::Result<usize>
-        where
-            F: FnMut(&Arc<Device>, &BlockRange, usize) -> vfs::Result<()>,
+    where
+        F: FnMut(&Arc<Device>, &BlockRange, usize) -> vfs::Result<()>,
     {
         let size = self.disk_inode.read().size as usize;
         let iter = BlockIter {
@@ -399,7 +399,11 @@ impl vfs::INode for INodeImpl {
         Ok(vfs::Metadata {
             dev: 0,
             inode: self.id,
-            size: if disk_inode.type_==FileType::CharDevice {0 as usize} else {disk_inode.size as usize},
+            size: if disk_inode.type_ == FileType::CharDevice {
+                0 as usize
+            } else {
+                disk_inode.size as usize
+            },
             mode: 0o777,
             type_: vfs::FileType::from(disk_inode.type_.clone()),
             blocks: disk_inode.blocks as usize,
@@ -410,16 +414,21 @@ impl vfs::INode for INodeImpl {
             uid: 0,
             gid: 0,
             blk_size: BLKSIZE,
-            rdev: if disk_inode.type_==FileType::CharDevice {((disk_inode.blocks as u64))} else {0 as u64}
+            rdev: if disk_inode.type_ == FileType::CharDevice {
+                (disk_inode.blocks as u64)
+            } else {
+                0 as u64
+            },
         })
     }
-    fn setrdev(&self, dev:u64)->vfs::Result<()>{
-        let mut disk_inode=self.disk_inode.write();
-        disk_inode.type_=FileType::CharDevice;
-        disk_inode.size=dev as u32;
-        self.fs.device.write_block(self.id, 0, disk_inode.as_buf())?;
+    fn setrdev(&self, dev: u64) -> vfs::Result<()> {
+        let mut disk_inode = self.disk_inode.write();
+        disk_inode.type_ = FileType::CharDevice;
+        disk_inode.size = dev as u32;
+        self.fs
+            .device
+            .write_block(self.id, 0, disk_inode.as_buf())?;
         Ok(())
-
     }
     fn set_metadata(&self, _metadata: &vfs::Metadata) -> vfs::Result<()> {
         // No-op for sfs
@@ -688,7 +697,7 @@ impl SimpleFileSystem {
             device,
             self_ptr: Weak::default(),
         }
-            .wrap())
+        .wrap())
     }
     /// Create a new SFS on blank disk
     pub fn create(device: Arc<Device>, space: usize) -> vfs::Result<Arc<Self>> {
@@ -719,7 +728,7 @@ impl SimpleFileSystem {
             device,
             self_ptr: Weak::default(),
         }
-            .wrap();
+        .wrap();
 
         // Init root INode
         let root = sfs._new_inode(BLKN_ROOT, Dirty::new_dirty(DiskINode::new_dir()));
@@ -829,7 +838,7 @@ impl SimpleFileSystem {
         }
     }
 }
-impl From<DevError> for FsError{
+impl From<DevError> for FsError {
     fn from(err: DevError) -> Self {
         FsError::DeviceError
     }

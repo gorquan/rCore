@@ -1,9 +1,9 @@
 use super::*;
 use crate::thread;
+use alloc::boxed::Box;
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
-use alloc::boxed::Box;
 #[derive(Default)]
 pub struct Condvar {
     wait_queue: SpinNoIrqLock<VecDeque<Arc<thread::Thread>>>,
@@ -14,16 +14,14 @@ impl Condvar {
         Condvar::default()
     }
 
-    pub fn generateDropper<T, S>(lock: MutexGuard<T, S>)->impl FnOnce()
-        where
-            S: MutexSupport{
-
-        let lock_box=Box::new(lock);
-        let lock_ptr=Box::into_raw(lock_box) as *mut MutexGuard<T, S> as usize;
-        (move ||{
-            unsafe {
-                let reconstructed_box = Box::from_raw(lock_ptr as *mut MutexGuard<T, S>);
-            }
+    pub fn generateDropper<T, S>(lock: MutexGuard<T, S>) -> impl FnOnce()
+    where
+        S: MutexSupport,
+    {
+        let lock_box = Box::new(lock);
+        let lock_ptr = Box::into_raw(lock_box) as *mut MutexGuard<T, S> as usize;
+        (move || unsafe {
+            let reconstructed_box = Box::from_raw(lock_ptr as *mut MutexGuard<T, S>);
         })
     }
     /// Park current thread and wait for this condvar to be notified.
@@ -33,7 +31,7 @@ impl Condvar {
         // So park current thread before wait queue lock is freed.
         // Avoid racing
         let lock = self.add_to_wait_queue();
-        let dropper=Condvar::generateDropper(lock);
+        let dropper = Condvar::generateDropper(lock);
         thread::park_action(move || {
             dropper();
         });
@@ -51,7 +49,7 @@ impl Condvar {
             locks.push(Condvar::generateDropper(lock));
         }
         thread::park_action(move || {
-            for f in locks.into_iter(){
+            for f in locks.into_iter() {
                 f();
             }
         });

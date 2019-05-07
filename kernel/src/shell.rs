@@ -1,12 +1,11 @@
 //! Kernel shell
 
-
 use crate::drivers::CMDLINE;
-use crate::fs::{INodeExt};
+use crate::fs::INodeExt;
 use crate::process::*;
+use crate::rcore_fs::vfs::{PathConfig, PathResolveResult};
 use alloc::string::String;
 use alloc::vec::Vec;
-use crate::rcore_fs::vfs::{PathConfig, PathResolveResult};
 #[cfg(not(any(feature = "run_cmdline", feature = "board_thinpad")))]
 pub fn add_user_shell() {
     // the busybox of alpine linux can not transfer env vars into child process
@@ -27,11 +26,16 @@ pub fn add_user_shell() {
     #[cfg(not(target_arch = "x86_64"))]
     let init_envs = Vec::new();
     let init_args = vec!["busybox".into(), "ash".into()];
-    let root_path=PathConfig::init_root();
-    if let Ok(PathResolveResult::IsFile{file: inode,..}) = root_path.path_resolve(&root_path.root, "busybox", true) {
-        processor()
-            .manager()
-            .add(Thread::new_user(&inode.inode, init_args, init_envs, Some(&root_path)));
+    let root_path = PathConfig::init_root();
+    if let Ok(PathResolveResult::IsFile { file: inode, .. }) =
+        root_path.path_resolve(&root_path.root, "busybox", true)
+    {
+        processor().manager().add(Thread::new_user(
+            &inode.inode,
+            init_args,
+            init_envs,
+            Some(&root_path),
+        ));
     } else {
         processor().manager().add(Thread::new_kernel(shell, 0));
     }
@@ -40,13 +44,15 @@ pub fn add_user_shell() {
 #[cfg(feature = "board_thinpad")]
 pub fn add_user_shell() {
     use crate::fs::INodeExt;
-    let root_path=PathConfig::init_root();
-    if let Ok(PathResolveResult::IsFile{file: inode,..}) = root_path.path_resolve(&root_path.root, "sh", true) {
+    let root_path = PathConfig::init_root();
+    if let Ok(PathResolveResult::IsFile { file: inode, .. }) =
+        root_path.path_resolve(&root_path.root, "sh", true)
+    {
         processor().manager().add(Thread::new_user(
             &inode.inode,
             vec!["sh".into()],
             Vec::new(),
-            Some(&root_path)
+            Some(&root_path),
         ));
     } else {
         processor().manager().add(Thread::new_kernel(shell, 0));
@@ -58,23 +64,23 @@ pub fn add_user_shell() {
 pub fn add_user_shell() {
     use crate::drivers::CMDLINE;
     let cmdline = CMDLINE.read();
-    let root_path=PathConfig::init_root();
-    if let Ok(PathResolveResult::IsFile{file: inode,..}) = root_path.path_resolve(&root_path.root, "sh", true) {
+    let root_path = PathConfig::init_root();
+    if let Ok(PathResolveResult::IsFile { file: inode, .. }) =
+        root_path.path_resolve(&root_path.root, "sh", true)
+    {
         processor().manager().add(Thread::new_user(
             &inode.inode,
             cmdline.split(' ').map(|s| s.into()).collect(),
             Vec::new(),
-            Some(&root_path)
+            Some(&root_path),
         ));
-    }else{
+    } else {
         panic!("cmdline not found");
     }
 }
 
-
-
 pub extern "C" fn shell(_arg: usize) -> ! {
-    let root_path=PathConfig::init_root();
+    let root_path = PathConfig::init_root();
     let files = root_path.cwd.inode.list().unwrap();
     println!("Available programs: {:?}", files);
     let mut history = Vec::new();
@@ -87,12 +93,14 @@ pub extern "C" fn shell(_arg: usize) -> ! {
         }
 
         let name = cmd.trim().split(' ').next().unwrap();
-        if let Ok(PathResolveResult::IsFile{file: inode, ..}) = root_path.path_resolve(&root_path.root, &name, true) {
+        if let Ok(PathResolveResult::IsFile { file: inode, .. }) =
+            root_path.path_resolve(&root_path.root, &name, true)
+        {
             let _tid = processor().manager().add(Thread::new_user(
                 &inode.inode,
                 cmd.split(' ').map(|s| s.into()).collect(),
                 Vec::new(),
-                Some(&root_path)
+                Some(&root_path),
             ));
 
         // TODO: wait until process exits, or use user land shell completely
@@ -237,7 +245,6 @@ fn get_line(history: &mut Vec<Vec<u8>>) -> String {
     }
     String::from_utf8(line_vec).unwrap_or_default()
 }
-
 
 fn get_char() -> u8 {
     crate::fs::STDIN_INODE.pop() as u8

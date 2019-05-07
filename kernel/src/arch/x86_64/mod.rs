@@ -9,10 +9,10 @@ pub mod gdt;
 pub mod idt;
 pub mod interrupt;
 pub mod io;
+pub mod ipi;
 pub mod memory;
 pub mod paging;
 pub mod rand;
-pub mod ipi;
 pub mod syscall;
 pub mod timer;
 
@@ -60,7 +60,6 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
 
     // init cpu scheduler and process manager, and add user shell app in process manager
     crate::process::init();
-
 
     //wake up other CPUs
 

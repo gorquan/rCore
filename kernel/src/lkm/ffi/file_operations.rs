@@ -16,16 +16,16 @@ pub struct FileOperations {
     pub close: Option<extern "C" fn(file: usize)>
 }
 */
-use crate::lkm::cdev::{FileOperations, CharDev, CDevManager};
 use crate::fs::{FileHandle, SeekFrom};
+use crate::lkm::cdev::{CDevManager, CharDev, FileOperations};
 use crate::rcore_fs::vfs::{FsError, Metadata, PollStatus};
 use alloc::string::String;
 use alloc::sync::Arc;
 
 #[repr(C)]
 #[derive(Debug, Clone)]
-pub struct FileOperationsFFI{
-    pub open: extern "C" fn()->usize,
+pub struct FileOperationsFFI {
+    pub open: extern "C" fn() -> usize,
     pub read: extern "C" fn(file: usize, buf: *mut u8, len: usize) -> isize,
     pub read_at: extern "C" fn(file: usize, offset: usize, buf: *mut u8, len: usize) -> isize,
     pub write: extern "C" fn(file: usize, buf: *const u8, len: usize) -> isize,
@@ -36,49 +36,53 @@ pub struct FileOperationsFFI{
     pub sync_data: extern "C" fn(file: usize) -> isize,
     //pub metadata: extern "C" fn(file: usize) -> isize,
     //pub read_entry: extern "C" fn(file: usize) -> isize,
-    pub poll: extern "C" fn (file: usize) -> isize,
+    pub poll: extern "C" fn(file: usize) -> isize,
     pub io_control: extern "C" fn(file: usize, cmd: u32, data: usize) -> isize,
-    pub close: extern "C" fn(file: usize)
+    pub close: extern "C" fn(file: usize),
 }
 #[repr(C)]
-pub struct CharDevFFI{
+pub struct CharDevFFI {
     parent_module: usize,
     file_operations_ffi: usize,
-    major: u32
+    major: u32,
 }
 #[no_mangle]
-pub extern "C" fn lkm_api_register_device(config: *const CharDevFFI)->usize{
-    let config=unsafe{&*config};
-    let cdev: CharDev=CharDev{
+pub extern "C" fn lkm_api_register_device(config: *const CharDevFFI) -> usize {
+    let config = unsafe { &*config };
+    let cdev: CharDev = CharDev {
         parent_module: Some(crate::lkm::api::get_module(config.parent_module).grab()),
-        file_op: Arc::new(unsafe{&*(config.file_operations_ffi as *const FileOperationsFFI)}.clone())
+        file_op: Arc::new(
+            unsafe { &*(config.file_operations_ffi as *const FileOperationsFFI) }.clone(),
+        ),
     };
-    CDevManager::get().write().registerDevice(config.major, cdev);
+    CDevManager::get()
+        .write()
+        .registerDevice(config.major, cdev);
     0
 }
 
-fn patch_isize_to_usize(s: isize)->Result<usize, FsError>{
-    if s<0{
+fn patch_isize_to_usize(s: isize) -> Result<usize, FsError> {
+    if s < 0 {
         Err(FsError::NotSupported)
-    }else{
+    } else {
         Ok(s as usize)
     }
 }
-fn patch_i64_to_u64(s: i64)->Result<u64, FsError>{
-    if s<0{
+fn patch_i64_to_u64(s: i64) -> Result<u64, FsError> {
+    if s < 0 {
         Err(FsError::NotSupported)
-    }else{
+    } else {
         Ok(s as u64)
     }
 }
-fn patch_isize_to_empty(s: isize)->Result<(), FsError>{
-    if s==0{
+fn patch_isize_to_empty(s: isize) -> Result<(), FsError> {
+    if s == 0 {
         Ok(())
-    }else{
+    } else {
         Err(FsError::NotSupported)
     }
 }
-impl FileOperations for FileOperationsFFI{
+impl FileOperations for FileOperationsFFI {
     fn open(&self) -> usize {
         (self.open)()
     }
@@ -87,8 +91,18 @@ impl FileOperations for FileOperationsFFI{
         patch_isize_to_usize((self.read)(fh.user_data, buf.as_mut_ptr(), buf.len()))
     }
 
-    fn read_at(&self, fh: &mut FileHandle, offset: usize, buf: &mut [u8]) -> Result<usize, FsError> {
-        patch_isize_to_usize((self.read_at)(fh.user_data, offset, buf.as_mut_ptr(), buf.len()))
+    fn read_at(
+        &self,
+        fh: &mut FileHandle,
+        offset: usize,
+        buf: &mut [u8],
+    ) -> Result<usize, FsError> {
+        patch_isize_to_usize((self.read_at)(
+            fh.user_data,
+            offset,
+            buf.as_mut_ptr(),
+            buf.len(),
+        ))
     }
 
     fn write(&self, fh: &mut FileHandle, buf: &[u8]) -> Result<usize, FsError> {
@@ -96,14 +110,19 @@ impl FileOperations for FileOperationsFFI{
     }
 
     fn write_at(&self, fh: &mut FileHandle, offset: usize, buf: &[u8]) -> Result<usize, FsError> {
-        patch_isize_to_usize((self.write_at)(fh.user_data, offset, buf.as_ptr(), buf.len()))
+        patch_isize_to_usize((self.write_at)(
+            fh.user_data,
+            offset,
+            buf.as_ptr(),
+            buf.len(),
+        ))
     }
 
     fn seek(&self, fh: &mut FileHandle, pos: SeekFrom) -> Result<u64, FsError> {
-        let (pos_mode, pos)=match pos{
-            SeekFrom::Current(pos)=>(0 as usize, pos as usize),
-            SeekFrom::Start(pos)=>(1 as usize, pos as usize),
-            SeekFrom::End(pos)=>(2 as usize, pos as usize),
+        let (pos_mode, pos) = match pos {
+            SeekFrom::Current(pos) => (0 as usize, pos as usize),
+            SeekFrom::Start(pos) => (1 as usize, pos as usize),
+            SeekFrom::End(pos) => (2 as usize, pos as usize),
         } as (usize, usize);
         patch_i64_to_u64((self.seek)(fh.user_data, pos_mode, pos))
     }

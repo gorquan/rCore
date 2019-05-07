@@ -1,4 +1,4 @@
-use crate::rcore_fs::vfs::{INode, Metadata, Result, INodeContainer};
+use crate::rcore_fs::vfs::{INode, INodeContainer, Metadata, Result};
 use alloc::{string::String, sync::Arc};
 
 pub struct File {

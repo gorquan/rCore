@@ -4,10 +4,10 @@ use core::cell::UnsafeCell;
 use core::cmp::min;
 use core::mem::size_of;
 
-use crate::rcore_fs::vfs::{INodeContainer, PathResolveResult};
 use crate::rcore_fs::get_virtual_fs;
 #[cfg(not(target_arch = "mips"))]
 use crate::rcore_fs::vfs::Timespec;
+use crate::rcore_fs::vfs::{INodeContainer, PathResolveResult};
 
 use crate::drivers::SOCKET_ACTIVITY;
 use crate::fs::*;
@@ -17,9 +17,9 @@ use crate::sync::Condvar;
 use bitvec::prelude::{BitSlice, BitVec, LittleEndian};
 
 use super::*;
+use crate::lkm::cdev::CDevManager;
 use alloc::slice::SliceConcatExt;
 use xmas_elf::dynamic::Tag::SymTabShIndex;
-use crate::lkm::cdev::CDevManager;
 
 impl Syscall<'_> {
     pub fn sys_read(&mut self, fd: usize, base: *mut u8, len: usize) -> SysResult {
@@ -57,7 +57,13 @@ impl Syscall<'_> {
         Ok(len)
     }
 
-    pub fn sys_pwrite(&mut self, fd: usize, base: *const u8, len: usize, offset: usize) -> SysResult {
+    pub fn sys_pwrite(
+        &mut self,
+        fd: usize,
+        base: *const u8,
+        len: usize,
+        offset: usize,
+    ) -> SysResult {
         info!(
             "pwrite: fd: {}, base: {:?}, len: {}, offset: {}",
             fd, base, len, offset
@@ -68,10 +74,12 @@ impl Syscall<'_> {
         Ok(len)
     }
 
-    pub fn sys_ppoll(&mut self,
-                     ufds: *mut PollFd,
-                     nfds: usize,
-                     timeout: *const TimeSpec) -> SysResult {
+    pub fn sys_ppoll(
+        &mut self,
+        ufds: *mut PollFd,
+        nfds: usize,
+        timeout: *const TimeSpec,
+    ) -> SysResult {
         let proc = self.process();
         let timeout_msecs = if timeout.is_null() {
             1 << 31 // infinity
@@ -137,7 +145,7 @@ impl Syscall<'_> {
             if timeout_msecs < (1 << 31) && current_time_ms - begin_time_ms > timeout_msecs {
                 return Ok(0);
             }
-            let stdin=&crate::fs::STDIN_INODE;
+            let stdin = &crate::fs::STDIN_INODE;
             Condvar::wait_any(&[&stdin.pushed, &(*SOCKET_ACTIVITY)]);
         }
     }
@@ -174,7 +182,7 @@ impl Syscall<'_> {
 
         let begin_time_ms = crate::trap::uptime_msec();
         loop {
-            let stdin=&crate::fs::STDIN_INODE;
+            let stdin = &crate::fs::STDIN_INODE;
             let proc = self.process();
             let mut events = 0;
             for (&fd, file_like) in proc.files.iter() {
@@ -226,15 +234,15 @@ impl Syscall<'_> {
             fd, iov_ptr, iov_count
         );
         let mut proc = self.process();
-        let mut iovs = unsafe { IoVecs::check_and_new(iov_ptr, iov_count, &self.vm(), true)?};
+        let mut iovs = unsafe { IoVecs::check_and_new(iov_ptr, iov_count, &self.vm(), true)? };
 
-            // read all data to a buf
-            let file_like = proc.get_file_like(fd)?;
-            let mut buf = iovs.new_buf(true);
-            let len = file_like.read(buf.as_mut_slice())?;
-            // copy data to user
-            iovs.write_all_from_slice(&buf[..len]);
-            Ok(len)
+        // read all data to a buf
+        let file_like = proc.get_file_like(fd)?;
+        let mut buf = iovs.new_buf(true);
+        let len = file_like.read(buf.as_mut_slice())?;
+        // copy data to user
+        iovs.write_all_from_slice(&buf[..len]);
+        Ok(len)
     }
 
     pub fn sys_writev(&mut self, fd: usize, iov_ptr: *const IoVec, iov_count: usize) -> SysResult {
@@ -258,7 +266,13 @@ impl Syscall<'_> {
         self.sys_openat(AT_FDCWD, path, flags, mode)
     }
 
-    pub fn sys_openat(&mut self, dir_fd: usize, path: *const u8, flags: usize, mode: usize) -> SysResult {
+    pub fn sys_openat(
+        &mut self,
+        dir_fd: usize,
+        path: *const u8,
+        flags: usize,
+        mode: usize,
+    ) -> SysResult {
         let mut proc = self.process();
         let path = unsafe { self.vm().check_and_clone_cstr(path)? };
         let flags = OpenFlags::from_bits_truncate(flags);
@@ -266,43 +280,43 @@ impl Syscall<'_> {
             "openat: dir_fd: {}, path: {:?}, flags: {:?}, mode: {:#o}",
             dir_fd as isize, path, flags, mode
         );
-        let start_directory=Arc::clone(if dir_fd==AT_FDCWD{
+        let start_directory = Arc::clone(if dir_fd == AT_FDCWD {
             &proc.cwd.cwd
-        }else{
+        } else {
             &proc.get_file(dir_fd)?.inode_container
         });
-        let resolve_result=proc.cwd.path_resolve(&start_directory, &path, true)?;
-        let ic=match resolve_result{
-            PathResolveResult::IsFile {file, parent,..}=>{
-                if flags.contains(OpenFlags::EXCLUSIVE){
+        let resolve_result = proc.cwd.path_resolve(&start_directory, &path, true)?;
+        let ic = match resolve_result {
+            PathResolveResult::IsFile { file, parent, .. } => {
+                if flags.contains(OpenFlags::EXCLUSIVE) {
                     return Err(SysError::EEXIST);
                 }
                 file
             }
-            PathResolveResult::IsDir {dir}=>{
-                if flags.contains(OpenFlags::EXCLUSIVE){
+            PathResolveResult::IsDir { dir } => {
+                if flags.contains(OpenFlags::EXCLUSIVE) {
                     return Err(SysError::EEXIST);
                 }
                 dir
             }
-            PathResolveResult::NotExist {parent, name}=>{
-                if flags.contains(OpenFlags::CREATE){
-                    Arc::new(INodeContainer{
+            PathResolveResult::NotExist { parent, name } => {
+                if flags.contains(OpenFlags::CREATE) {
+                    Arc::new(INodeContainer {
                         inode: parent.inode.create(&name, FileType::File, mode as u32)?,
-                        vfs: Arc::clone(&parent.vfs)
+                        vfs: Arc::clone(&parent.vfs),
                     })
-                }else{
+                } else {
                     return Err(SysError::ENOENT);
                 }
-
             }
         };
 
-
-        let metadata=ic.inode.metadata()?;
-        let file= if metadata.type_==FileType::CharDevice{
-            CDevManager::get().read().openDevice(ic,flags.to_options())?
-        }else{
+        let metadata = ic.inode.metadata()?;
+        let file = if metadata.type_ == FileType::CharDevice {
+            CDevManager::get()
+                .read()
+                .openDevice(ic, flags.to_options())?
+        } else {
             FileLike::File(FileHandle::new(ic, flags.to_options()))
         };
         let fd = proc.add_file(file);
@@ -326,7 +340,13 @@ impl Syscall<'_> {
         self.sys_faccessat(AT_FDCWD, path, mode, 0)
     }
 
-    pub fn sys_faccessat(&mut self, dirfd: usize, path: *const u8, mode: usize, flags: usize) -> SysResult {
+    pub fn sys_faccessat(
+        &mut self,
+        dirfd: usize,
+        path: *const u8,
+        mode: usize,
+        flags: usize,
+    ) -> SysResult {
         // TODO: check permissions based on uid/gid
         let proc = self.process();
         let path = unsafe { self.vm().check_and_clone_cstr(path)? };
@@ -339,8 +359,8 @@ impl Syscall<'_> {
             );
         }
 
-        let result=proc.cwd.path_resolve(&proc.cwd.cwd, &path, true)?;
-        if let PathResolveResult::NotExist {..}=result{
+        let result = proc.cwd.path_resolve(&proc.cwd.cwd, &path, true)?;
+        if let PathResolveResult::NotExist { .. } = result {
             return Err(SysError::ENOENT);
         }
 
@@ -353,43 +373,50 @@ impl Syscall<'_> {
             // we trust pid 0 process
             info!("getcwd: buf: {:?}, len: {:#x}", buf, len);
         }
-        let buf=unsafe {self.vm().check_write_array(buf, len)?};
+        let buf = unsafe { self.vm().check_write_array(buf, len)? };
 
         //use crate::rcore_fs::VIRTUAL_FS;
-        use spin::RwLock;
         use crate::rcore_fs::vfs::VirtualFS;
+        use spin::RwLock;
         // TODO: a more graceful and natural implementation?
-        let mut current_inode=Arc::clone(&proc.cwd.cwd);
-        let root_inode_id=proc.cwd.root.inode.metadata().unwrap().inode;
-        let total_root_vfs:Arc<INodeContainer>=VirtualFS::getRootINode(get_virtual_fs());
-        let total_inode_id=total_root_vfs.inode.metadata().unwrap().inode;
-        let mut path_parts:Vec<String>=Vec::new();
-        let mut unreachable=false;
-        loop{
-            let current_inode_id=current_inode.inode.metadata().unwrap().inode;
-            if Arc::ptr_eq(&current_inode.vfs, &proc.cwd.root.vfs) && current_inode_id==root_inode_id{ //Reaching our root;
+        let mut current_inode = Arc::clone(&proc.cwd.cwd);
+        let root_inode_id = proc.cwd.root.inode.metadata().unwrap().inode;
+        let total_root_vfs: Arc<INodeContainer> = VirtualFS::getRootINode(get_virtual_fs());
+        let total_inode_id = total_root_vfs.inode.metadata().unwrap().inode;
+        let mut path_parts: Vec<String> = Vec::new();
+        let mut unreachable = false;
+        loop {
+            let current_inode_id = current_inode.inode.metadata().unwrap().inode;
+            if Arc::ptr_eq(&current_inode.vfs, &proc.cwd.root.vfs)
+                && current_inode_id == root_inode_id
+            {
+                //Reaching our root;
                 //Reaching our root
                 break;
-            }else if Arc::ptr_eq(&total_root_vfs.vfs, &proc.cwd.root.vfs) && current_inode_id==total_inode_id { //Reaching total root before our root.
+            } else if Arc::ptr_eq(&total_root_vfs.vfs, &proc.cwd.root.vfs)
+                && current_inode_id == total_inode_id
+            {
+                //Reaching total root before our root.
                 //Reaching total root
-                unreachable=true;
+                unreachable = true;
                 break;
-            }else{ //Safe to go down a stair.
-                let parent=unsafe {proc.cwd.forceResolveParent(&current_inode)};
-                let name=parent.findNameByChild(&current_inode)?;
+            } else {
+                //Safe to go down a stair.
+                let parent = unsafe { proc.cwd.forceResolveParent(&current_inode) };
+                let name = parent.findNameByChild(&current_inode)?;
                 path_parts.push(name);
-                current_inode=parent;
+                current_inode = parent;
             }
             // The stairs will finish, and root will be reached.
         }
 
         path_parts.reverse();
-        let total_string=if unreachable{
+        let total_string = if unreachable {
             String::from("(unreachable)")
-        }else{
-            String::from("/")+&path_parts.join("/")
+        } else {
+            String::from("/") + &path_parts.join("/")
         };
-        if total_string.len()+1>len{
+        if total_string.len() + 1 > len {
             return Err(SysError::ERANGE);
         }
 
@@ -397,22 +424,32 @@ impl Syscall<'_> {
         Ok(buf.as_ptr() as usize)
     }
 
-
-    fn impl_sys_stat(&mut self, start_directory: Arc<INodeContainer>, path: *const u8, stat_ptr: *mut Stat, resolve_link: bool)->SysResult{
+    fn impl_sys_stat(
+        &mut self,
+        start_directory: Arc<INodeContainer>,
+        path: *const u8,
+        stat_ptr: *mut Stat,
+        resolve_link: bool,
+    ) -> SysResult {
         let proc = self.process();
 
         let path = unsafe { self.vm().check_and_clone_cstr(path)? };
 
         let stat_ref = unsafe { self.vm().check_write_ptr(stat_ptr)? };
 
-        let inode = ( match proc.cwd.path_resolve(&start_directory, &path, resolve_link)?{
-            PathResolveResult::IsDir {dir}=>dir,
-            PathResolveResult::IsFile {file,..}=>file,
-            PathResolveResult::NotExist {..}=>{return Err(SysError::ENOENT);},
+        let inode = (match proc
+            .cwd
+            .path_resolve(&start_directory, &path, resolve_link)?
+        {
+            PathResolveResult::IsDir { dir } => dir,
+            PathResolveResult::IsFile { file, .. } => file,
+            PathResolveResult::NotExist { .. } => {
+                return Err(SysError::ENOENT);
+            }
         });
 
         let stat = Stat::from(inode.inode.metadata()?);
-        *stat_ref=stat;
+        *stat_ref = stat;
         Ok(0)
     }
     pub fn sys_stat(&mut self, path: *const u8, stat_ptr: *mut Stat) -> SysResult {
@@ -420,7 +457,7 @@ impl Syscall<'_> {
 
         info!("stat: path: {:?}, stat_ptr: {:?}", path, stat_ptr);
 
-        let cwd=Arc::clone(&proc.cwd.cwd);
+        let cwd = Arc::clone(&proc.cwd.cwd);
         drop(proc);
         self.impl_sys_stat(cwd, path, stat_ptr, true)
     }
@@ -431,39 +468,54 @@ impl Syscall<'_> {
         let stat_ref = unsafe { self.vm().check_write_ptr(stat_ptr)? };
         let file = proc.get_file(fd)?;
         let stat = Stat::from(file.metadata()?);
-        *stat_ref=stat;
+        *stat_ref = stat;
         Ok(0)
     }
 
     pub fn sys_lstat(&mut self, path: *const u8, stat_ptr: *mut Stat) -> SysResult {
         info!("lstat: path: {:?}, stat_ptr: {:?}", path, stat_ptr);
         let proc = self.process();
-        let cwd=Arc::clone(&proc.cwd.cwd);
+        let cwd = Arc::clone(&proc.cwd.cwd);
         drop(proc);
         self.impl_sys_stat(cwd, path, stat_ptr, false)
     }
 
-    pub fn sys_fstatat(&mut self, dirfd: usize, pathname: *const u8, stat_ptr: *mut Stat, flags: usize) -> SysResult {
+    pub fn sys_fstatat(
+        &mut self,
+        dirfd: usize,
+        pathname: *const u8,
+        stat_ptr: *mut Stat,
+        flags: usize,
+    ) -> SysResult {
         let mut proc = self.process();
-        let dir=Arc::clone(&proc.get_file(dirfd)?.inode_container);
+        let dir = Arc::clone(&proc.get_file(dirfd)?.inode_container);
         drop(proc);
-        self.impl_sys_stat(dir, pathname, stat_ptr, (flags&0x100)==0)
+        self.impl_sys_stat(dir, pathname, stat_ptr, (flags & 0x100) == 0)
     }
     pub fn sys_readlink(&mut self, path: *const u8, base: *mut u8, len: usize) -> SysResult {
         self.sys_readlinkat(AT_FDCWD, path, base, len)
     }
 
-    pub fn sys_readlinkat(&mut self, dirfd: usize, path: *const u8, base: *mut u8, len: usize) -> SysResult {
+    pub fn sys_readlinkat(
+        &mut self,
+        dirfd: usize,
+        path: *const u8,
+        base: *mut u8,
+        len: usize,
+    ) -> SysResult {
         let proc = self.process();
         let path = unsafe { self.vm().check_and_clone_cstr(path)? };
         let slice = unsafe { self.vm().check_write_array(base, len)? };
         info!("readlink: path: {:?}, base: {:?}, len: {}", path, base, len);
 
-        let inode = &( match proc.cwd.path_resolve(&proc.cwd.cwd, &path, false)?{
-            PathResolveResult::IsDir {dir}=>dir,
-            PathResolveResult::IsFile {file,..}=>file,
-            PathResolveResult::NotExist {..}=>{return Err(SysError::ENOENT);},
-        }).inode;
+        let inode = &(match proc.cwd.path_resolve(&proc.cwd.cwd, &path, false)? {
+            PathResolveResult::IsDir { dir } => dir,
+            PathResolveResult::IsFile { file, .. } => file,
+            PathResolveResult::NotExist { .. } => {
+                return Err(SysError::ENOENT);
+            }
+        })
+        .inode;
 
         if inode.metadata()?.type_ == FileType::SymLink {
             // TODO: recursive link resolution and loop detection
@@ -506,10 +558,12 @@ impl Syscall<'_> {
         let proc = self.process();
         let path = unsafe { self.vm().check_and_clone_cstr(path)? };
         info!("truncate: path: {:?}, len: {}", path, len);
-        let inode = ( match proc.cwd.path_resolve(&proc.cwd.cwd, &path, true)?{
-            PathResolveResult::IsDir {dir}=>dir,
-            PathResolveResult::IsFile {file,..}=>file,
-            PathResolveResult::NotExist {..}=>{return Err(SysError::ENOENT);},
+        let inode = (match proc.cwd.path_resolve(&proc.cwd.cwd, &path, true)? {
+            PathResolveResult::IsDir { dir } => dir,
+            PathResolveResult::IsFile { file, .. } => file,
+            PathResolveResult::NotExist { .. } => {
+                return Err(SysError::ENOENT);
+            }
         });
         inode.inode.resize(len)?;
         Ok(0)
@@ -521,7 +575,12 @@ impl Syscall<'_> {
         Ok(0)
     }
 
-    pub fn sys_getdents64(&mut self, fd: usize, buf: *mut LinuxDirent64, buf_size: usize) -> SysResult {
+    pub fn sys_getdents64(
+        &mut self,
+        fd: usize,
+        buf: *mut LinuxDirent64,
+        buf_size: usize,
+    ) -> SysResult {
         info!(
             "getdents64: fd: {}, ptr: {:?}, buf_size: {}",
             fd, buf, buf_size
@@ -533,10 +592,10 @@ impl Syscall<'_> {
         if info.type_ != FileType::Dir {
             return Err(SysError::ENOTDIR);
         }
-        let ic=Arc::clone(&file.inode_container);
+        let ic = Arc::clone(&file.inode_container);
         let mut writer = unsafe { DirentBufWriter::new(buf) };
-        let is_file_root=proc.cwd.hasReachedRoot(&ic);
-        let is_current_very_root=ic.is_very_root();
+        let is_file_root = proc.cwd.hasReachedRoot(&ic);
+        let is_current_very_root = ic.is_very_root();
         let file = proc.get_file(fd)?; //re-borrow?
         loop {
             let name = match file.read_entry() {
@@ -545,9 +604,13 @@ impl Syscall<'_> {
             }?;
             // TODO: get ino from dirent
 
-            let target=ic.find(is_file_root || is_current_very_root, &name)?;
-            let info=target.inode.metadata()?;
-            let ok = writer.try_write(info.inode as u64, DirentType::from_type(&info.type_).bits(), &name);
+            let target = ic.find(is_file_root || is_current_very_root, &name)?;
+            let info = target.inode.metadata()?;
+            let ok = writer.try_write(
+                info.inode as u64,
+                DirentType::from_type(&info.type_).bits(),
+                &name,
+            );
             if !ok {
                 break;
             }
@@ -566,7 +629,14 @@ impl Syscall<'_> {
         Ok(fd2)
     }
 
-    pub fn sys_ioctl(&mut self, fd: usize, request: usize, arg1: usize, arg2: usize, arg3: usize) -> SysResult {
+    pub fn sys_ioctl(
+        &mut self,
+        fd: usize,
+        request: usize,
+        arg1: usize,
+        arg2: usize,
+        arg3: usize,
+    ) -> SysResult {
         info!(
             "ioctl: fd: {}, request: {:x}, args: {} {} {}",
             fd, request, arg1, arg2, arg3
@@ -585,13 +655,12 @@ impl Syscall<'_> {
         }
 
         let inode = proc.cwd.path_resolve(&proc.cwd.cwd, &path, true)?;
-        if let PathResolveResult::IsDir {dir}=inode{
-            proc.cwd.cwd=dir;
+        if let PathResolveResult::IsDir { dir } = inode {
+            proc.cwd.cwd = dir;
             Ok(0)
-        }else{
+        } else {
             Err(SysError::ENOTDIR)
         }
-
     }
 
     pub fn sys_rename(&mut self, oldpath: *const u8, newpath: *const u8) -> SysResult {
@@ -605,49 +674,61 @@ impl Syscall<'_> {
         newdirfd: usize,
         newpath: *const u8,
     ) -> SysResult {
-        let mut proc=self.process();
+        let mut proc = self.process();
         let oldpath = unsafe { self.vm().check_and_clone_cstr(oldpath)? };
         let newpath = unsafe { self.vm().check_and_clone_cstr(newpath)? };
         info!(
             "renameat: olddirfd: {}, oldpath: {:?}, newdirfd: {}, newpath: {:?}",
             olddirfd as isize, oldpath, newdirfd as isize, newpath
         );
-        let old_start_directory=Arc::clone(if olddirfd==AT_FDCWD{
+        let old_start_directory = Arc::clone(if olddirfd == AT_FDCWD {
             &proc.cwd.cwd
-        }else{
+        } else {
             &proc.get_file(olddirfd)?.inode_container
         });
-        let old_file=proc.cwd.path_resolve(&old_start_directory, &oldpath, false)?;
-        let (old_parent, old_name)=match old_file{
-            PathResolveResult::IsDir {dir,..}=>{
-                let parent=dir.find(proc.cwd.hasReachedRoot(&dir), "..")?;
-                let name=parent.findNameByChild(&dir)?;
-                if name=="." || name==".."{ //How dare you move root?
+        let old_file = proc
+            .cwd
+            .path_resolve(&old_start_directory, &oldpath, false)?;
+        let (old_parent, old_name) = match old_file {
+            PathResolveResult::IsDir { dir, .. } => {
+                let parent = dir.find(proc.cwd.hasReachedRoot(&dir), "..")?;
+                let name = parent.findNameByChild(&dir)?;
+                if name == "." || name == ".." {
+                    //How dare you move root?
                     Err(FsError::DirNotEmpty)?;
                 }
                 (parent, name)
-            },
-            PathResolveResult::IsFile {name,parent,..}=>(parent,name),
-            PathResolveResult::NotExist {..}=>{return Err(SysError::ENOENT);},
+            }
+            PathResolveResult::IsFile { name, parent, .. } => (parent, name),
+            PathResolveResult::NotExist { .. } => {
+                return Err(SysError::ENOENT);
+            }
         };
-        let new_start_directory=Arc::clone(if newdirfd==AT_FDCWD{
+        let new_start_directory = Arc::clone(if newdirfd == AT_FDCWD {
             &proc.cwd.cwd
-        }else{
+        } else {
             &proc.get_file(newdirfd)?.inode_container
         });
-        let new_file=proc.cwd.path_resolve(&new_start_directory, &newpath, true)?;
-        let (new_parent, new_name)=match new_file{
-            PathResolveResult::IsDir {..}=>{return Err(SysError::EEXIST);},
-            PathResolveResult::IsFile {..}=>{return Err(SysError::EEXIST);},
-            PathResolveResult::NotExist {parent,name,..}=>(parent, name),
+        let new_file = proc
+            .cwd
+            .path_resolve(&new_start_directory, &newpath, true)?;
+        let (new_parent, new_name) = match new_file {
+            PathResolveResult::IsDir { .. } => {
+                return Err(SysError::EEXIST);
+            }
+            PathResolveResult::IsFile { .. } => {
+                return Err(SysError::EEXIST);
+            }
+            PathResolveResult::NotExist { parent, name, .. } => (parent, name),
         };
-        if Arc::ptr_eq(&old_parent.vfs, &new_parent.vfs){
-            old_parent.inode.move_(&old_name, &new_parent.inode, &new_name)?;
-        }else{
+        if Arc::ptr_eq(&old_parent.vfs, &new_parent.vfs) {
+            old_parent
+                .inode
+                .move_(&old_name, &new_parent.inode, &new_name)?;
+        } else {
             Err(FsError::NotSameFs)?;
         }
         Ok(0)
-
 
         //Err(SysError::ENOSYS)
     }
@@ -665,67 +746,90 @@ impl Syscall<'_> {
             dirfd as isize, path, mode
         );
 
-        match proc.cwd.path_resolve(&proc.cwd.cwd, &path, false)?{
-            PathResolveResult::IsDir {dir}=>{return Err(SysError::EEXIST);},
-            PathResolveResult::IsFile {file,..}=>{return Err(SysError::EEXIST);},
-            PathResolveResult::NotExist {parent, name: file_name}=>{
-                parent.inode.create(&file_name, FileType::Dir, mode as u32)?;
+        match proc.cwd.path_resolve(&proc.cwd.cwd, &path, false)? {
+            PathResolveResult::IsDir { dir } => {
+                return Err(SysError::EEXIST);
+            }
+            PathResolveResult::IsFile { file, .. } => {
+                return Err(SysError::EEXIST);
+            }
+            PathResolveResult::NotExist {
+                parent,
+                name: file_name,
+            } => {
+                parent
+                    .inode
+                    .create(&file_name, FileType::Dir, mode as u32)?;
                 return Ok(0);
-            },
-
+            }
         }
-
     }
 
-
-    pub fn sys_mknodat(&self, dir_fd: usize, path: *const u8, mode: usize, dev: usize) -> SysResult {
+    pub fn sys_mknodat(
+        &self,
+        dir_fd: usize,
+        path: *const u8,
+        mode: usize,
+        dev: usize,
+    ) -> SysResult {
         let mut proc = self.process();
         let path = unsafe { self.vm().check_and_clone_cstr(path)? };
         // TODO: check pathname
         info!("mknod: path: {:?}, mode: {:#o}", path, mode);
-        let start_directory=Arc::clone(if dir_fd==AT_FDCWD{
+        let start_directory = Arc::clone(if dir_fd == AT_FDCWD {
             &proc.cwd.cwd
-        }else{
+        } else {
             &proc.get_file(dir_fd)?.inode_container
         });
         //let flags=OpenFlags.
-        match proc.cwd.path_resolve(&proc.cwd.cwd, &path, false)?{
-            PathResolveResult::IsDir {dir}=>{return Err(SysError::EEXIST);},
-            PathResolveResult::IsFile {file,..}=>{return Err(SysError::EEXIST);},
-            PathResolveResult::NotExist {parent, name: file_name}=>{
+        match proc.cwd.path_resolve(&proc.cwd.cwd, &path, false)? {
+            PathResolveResult::IsDir { dir } => {
+                return Err(SysError::EEXIST);
+            }
+            PathResolveResult::IsFile { file, .. } => {
+                return Err(SysError::EEXIST);
+            }
+            PathResolveResult::NotExist {
+                parent,
+                name: file_name,
+            } => {
                 // TODO: assume creating a CharDevice.
                 // To simplify we don't allow BlockDevice here, like FreeBSD.
                 // Need also consider named pipe, named socket and so on.
-                let inode=parent.inode.create(&file_name, FileType::CharDevice, mode as u32)?;
+                let inode = parent
+                    .inode
+                    .create(&file_name, FileType::CharDevice, mode as u32)?;
                 inode.setrdev(dev as u64)?;
                 return Ok(0);
-            },
+            }
         }
-
     }
-
 
     pub fn sys_rmdir(&mut self, path: *const u8) -> SysResult {
         let proc = self.process();
         let path = unsafe { self.vm().check_and_clone_cstr(path)? };
         info!("rmdir: path: {:?}", path);
 
-        let inode = &( match proc.cwd.path_resolve(&proc.cwd.cwd, &path, false)?{
-            PathResolveResult::IsDir {dir}=>dir,
-            PathResolveResult::IsFile {file,..}=>{return Err(SysError::ENOTDIR);},
-            PathResolveResult::NotExist {..}=>{return Err(SysError::ENOENT);},
+        let inode = &(match proc.cwd.path_resolve(&proc.cwd.cwd, &path, false)? {
+            PathResolveResult::IsDir { dir } => dir,
+            PathResolveResult::IsFile { file, .. } => {
+                return Err(SysError::ENOTDIR);
+            }
+            PathResolveResult::NotExist { .. } => {
+                return Err(SysError::ENOENT);
+            }
         });
-        if inode.is_root_inode(){
+        if inode.is_root_inode() {
             return Err(SysError::EBUSY);
         }
 
-        if proc.cwd.hasReachedRoot(inode) || inode.is_very_root(){
+        if proc.cwd.hasReachedRoot(inode) || inode.is_very_root() {
             return Err(SysError::EBUSY);
         }
         //now safely find parent.
-        let parent=inode.find(false, "..")?;
+        let parent = inode.find(false, "..")?;
         // inode is not a mountpoint, so two files lie in same fs.
-        let name=parent.findNameByChild(inode)?;
+        let name = parent.findNameByChild(inode)?;
         parent.inode.unlink(&name)?;
         Ok(0)
     }
@@ -750,19 +854,22 @@ impl Syscall<'_> {
             "linkat: olddirfd: {}, oldpath: {:?}, newdirfd: {}, newpath: {:?}, flags: {:?}",
             olddirfd as isize, oldpath, newdirfd as isize, newpath, flags
         );
-        let inode = &( match proc.cwd.path_resolve(&proc.cwd.cwd, &oldpath, false)?{
-            PathResolveResult::IsDir {dir}=>{return Err(SysError::EISDIR);},
-            PathResolveResult::IsFile {file,..}=>file,
-            PathResolveResult::NotExist {..}=>{return Err(SysError::ENOENT);},
-        }).inode;
+        let inode = &(match proc.cwd.path_resolve(&proc.cwd.cwd, &oldpath, false)? {
+            PathResolveResult::IsDir { dir } => {
+                return Err(SysError::EISDIR);
+            }
+            PathResolveResult::IsFile { file, .. } => file,
+            PathResolveResult::NotExist { .. } => {
+                return Err(SysError::ENOENT);
+            }
+        })
+        .inode;
         match proc.cwd.path_resolve(&proc.cwd.cwd, &newpath, false)? {
             PathResolveResult::NotExist { parent, name } => {
                 parent.inode.link(&name, inode)?;
                 Ok(0)
             }
-            _ => {
-                Err(SysError::EEXIST)
-            }
+            _ => Err(SysError::EEXIST),
         }
     }
 
@@ -779,17 +886,15 @@ impl Syscall<'_> {
             dirfd as isize, path, flags
         );
 
-        match proc.cwd.path_resolve(&proc.cwd.cwd, &path, false)?{
-            PathResolveResult::IsDir {..}=>Err(SysError::EISDIR),
-            PathResolveResult::NotExist {..}=>Err(SysError::ENOENT),
-            PathResolveResult::IsFile {file, parent,..}=>{
-                let name=parent.findNameByChild(&file)?;
+        match proc.cwd.path_resolve(&proc.cwd.cwd, &path, false)? {
+            PathResolveResult::IsDir { .. } => Err(SysError::EISDIR),
+            PathResolveResult::NotExist { .. } => Err(SysError::ENOENT),
+            PathResolveResult::IsFile { file, parent, .. } => {
+                let name = parent.findNameByChild(&file)?;
                 parent.inode.unlink(&name)?;
                 Ok(0)
             }
-
         }
-
     }
 
     pub fn sys_pipe(&mut self, fds: *mut u32) -> SysResult {
@@ -799,28 +904,23 @@ impl Syscall<'_> {
         let mut fds = unsafe { self.vm().check_write_array(fds, 2)? };
         let (read, write) = Pipe::create_pair();
 
-        let read_fd=proc.add_file(
+        let read_fd = proc.add_file(FileLike::File(FileHandle::new(
+            unsafe { INodeContainer::anonymous_inode(Arc::new(read)) },
+            OpenOptions {
+                read: true,
+                write: false,
+                append: false,
+            },
+        )));
 
-            FileLike::File(FileHandle::new(
-                unsafe {INodeContainer::anonymous_inode(Arc::new(read))},
-                OpenOptions {
-                    read: true,
-                    write: false,
-                    append: false,
-                },
-            )),
-        );
-
-        let write_fd = proc.add_file(
-            FileLike::File(FileHandle::new(
-                unsafe {INodeContainer::anonymous_inode(Arc::new(write))},
-                OpenOptions {
-                    read: false,
-                    write: true,
-                    append: false,
-                },
-            )),
-        );
+        let write_fd = proc.add_file(FileLike::File(FileHandle::new(
+            unsafe { INodeContainer::anonymous_inode(Arc::new(write)) },
+            OpenOptions {
+                read: false,
+                write: true,
+                append: false,
+            },
+        )));
 
         fds[0] = read_fd as u32;
         fds[1] = write_fd as u32;
@@ -860,7 +960,6 @@ impl Syscall<'_> {
         } else {
             in_file.seek(SeekFrom::Current(0))? as usize
         };
-
 
         // read from specified offset and write new offset back
         let mut bytes_read = 0;
@@ -924,10 +1023,7 @@ impl Process {
     }
     // TODO: breaks /proc/self/exe and /proc/self/fd
     // This should be done in the right way.
-
 }
-
-
 
 impl From<FsError> for SysError {
     fn from(error: FsError) -> Self {
@@ -945,36 +1041,36 @@ impl From<FsError> for SysError {
             FsError::DirNotEmpty => SysError::ENOTEMPTY,
             FsError::WrongFs => SysError::EINVAL,
             FsError::DeviceError => SysError::EIO,
-            FsError::SymLoop=>SysError::ELOOP,
-            FsError::NoDevice=>SysError::ENXIO
+            FsError::SymLoop => SysError::ELOOP,
+            FsError::NoDevice => SysError::ENXIO,
         }
     }
 }
 
 bitflags! {
-	struct AtFlags: usize {
-		const EMPTY_PATH = 0x1000;
-		const SYMLINK_NOFOLLOW = 0x100;
-	}
+    struct AtFlags: usize {
+        const EMPTY_PATH = 0x1000;
+        const SYMLINK_NOFOLLOW = 0x100;
+    }
 }
 
 bitflags! {
-	struct OpenFlags: usize {
-		/// read only
-		const RDONLY = 0;
-		/// write only
-		const WRONLY = 1;
-		/// read write
-		const RDWR = 2;
-		/// create file if it does not exist
-		const CREATE = 1 << 6;
-		/// error if CREATE and the file exists
-		const EXCLUSIVE = 1 << 7;
-		/// truncate file upon open
-		const TRUNCATE = 1 << 9;
-		/// append on each write
-		const APPEND = 1 << 10;
-	}
+    struct OpenFlags: usize {
+        /// read only
+        const RDONLY = 0;
+        /// write only
+        const WRONLY = 1;
+        /// read write
+        const RDWR = 2;
+        /// create file if it does not exist
+        const CREATE = 1 << 6;
+        /// error if CREATE and the file exists
+        const EXCLUSIVE = 1 << 7;
+        /// truncate file upon open
+        const TRUNCATE = 1 << 9;
+        /// append on each write
+        const APPEND = 1 << 10;
+    }
 }
 
 impl OpenFlags {
@@ -1017,7 +1113,6 @@ struct DirentBufWriter<'a> {
     written_size: usize,
 }
 
-
 impl<'a> DirentBufWriter<'a> {
     fn new(buf: &'a mut [u8]) -> Self {
         DirentBufWriter {
@@ -1053,25 +1148,25 @@ impl<'a> DirentBufWriter<'a> {
 }
 
 bitflags! {
-	pub struct DirentType: u8 {
-		const DT_UNKNOWN  = 0;
-		/// FIFO (named pipe)
-		const DT_FIFO = 1;
-		/// Character device
-		const DT_CHR  = 2;
-		/// Directory
-		const DT_DIR  = 4;
-		/// Block device
-		const DT_BLK = 6;
-		/// Regular file
-		const DT_REG = 8;
-		/// Symbolic link
-		const DT_LNK = 10;
-		/// UNIX domain socket
-		const DT_SOCK  = 12;
-		/// ???
-		const DT_WHT = 14;
-	}
+    pub struct DirentType: u8 {
+        const DT_UNKNOWN  = 0;
+        /// FIFO (named pipe)
+        const DT_FIFO = 1;
+        /// Character device
+        const DT_CHR  = 2;
+        /// Directory
+        const DT_DIR  = 4;
+        /// Block device
+        const DT_BLK = 6;
+        /// Regular file
+        const DT_REG = 8;
+        /// Symbolic link
+        const DT_LNK = 10;
+        /// UNIX domain socket
+        const DT_SOCK  = 12;
+        /// ???
+        const DT_WHT = 14;
+    }
 }
 
 impl DirentType {
@@ -1211,57 +1306,57 @@ pub struct Stat {
 }
 
 bitflags! {
-	pub struct StatMode: u32 {
-		const NULL  = 0;
-		/// Type
-		const TYPE_MASK = 0o170000;
-		/// FIFO
-		const FIFO  = 0o010000;
-		/// character device
-		const CHAR  = 0o020000;
-		/// directory
-		const DIR   = 0o040000;
-		/// block device
-		const BLOCK = 0o060000;
-		/// ordinary regular file
-		const FILE  = 0o100000;
-		/// symbolic link
-		const LINK  = 0o120000;
-		/// socket
-		const SOCKET = 0o140000;
+    pub struct StatMode: u32 {
+        const NULL  = 0;
+        /// Type
+        const TYPE_MASK = 0o170000;
+        /// FIFO
+        const FIFO  = 0o010000;
+        /// character device
+        const CHAR  = 0o020000;
+        /// directory
+        const DIR   = 0o040000;
+        /// block device
+        const BLOCK = 0o060000;
+        /// ordinary regular file
+        const FILE  = 0o100000;
+        /// symbolic link
+        const LINK  = 0o120000;
+        /// socket
+        const SOCKET = 0o140000;
 
-		/// Set-user-ID on execution.
-		const SET_UID = 0o4000;
-		/// Set-group-ID on execution.
-		const SET_GID = 0o2000;
+        /// Set-user-ID on execution.
+        const SET_UID = 0o4000;
+        /// Set-group-ID on execution.
+        const SET_GID = 0o2000;
 
-		/// Read, write, execute/search by owner.
-		const OWNER_MASK = 0o700;
-		/// Read permission, owner.
-		const OWNER_READ = 0o400;
-		/// Write permission, owner.
-		const OWNER_WRITE = 0o200;
-		/// Execute/search permission, owner.
-		const OWNER_EXEC = 0o100;
+        /// Read, write, execute/search by owner.
+        const OWNER_MASK = 0o700;
+        /// Read permission, owner.
+        const OWNER_READ = 0o400;
+        /// Write permission, owner.
+        const OWNER_WRITE = 0o200;
+        /// Execute/search permission, owner.
+        const OWNER_EXEC = 0o100;
 
-		/// Read, write, execute/search by group.
-		const GROUP_MASK = 0o70;
-		/// Read permission, group.
-		const GROUP_READ = 0o40;
-		/// Write permission, group.
-		const GROUP_WRITE = 0o20;
-		/// Execute/search permission, group.
-		const GROUP_EXEC = 0o10;
+        /// Read, write, execute/search by group.
+        const GROUP_MASK = 0o70;
+        /// Read permission, group.
+        const GROUP_READ = 0o40;
+        /// Write permission, group.
+        const GROUP_WRITE = 0o20;
+        /// Execute/search permission, group.
+        const GROUP_EXEC = 0o10;
 
-		/// Read, write, execute/search by others.
-		const OTHER_MASK = 0o7;
-		/// Read permission, others.
-		const OTHER_READ = 0o4;
-		/// Write permission, others.
-		const OTHER_WRITE = 0o2;
-		/// Execute/search permission, others.
-		const OTHER_EXEC = 0o1;
-	}
+        /// Read, write, execute/search by others.
+        const OTHER_MASK = 0o7;
+        /// Read permission, others.
+        const OTHER_READ = 0o4;
+        /// Write permission, others.
+        const OTHER_WRITE = 0o2;
+        /// Execute/search permission, others.
+        const OTHER_EXEC = 0o1;
+    }
 }
 
 impl StatMode {
@@ -1434,7 +1529,6 @@ impl IoVecs {
     }
 }
 
-
 #[repr(C)]
 pub struct PollFd {
     fd: u32,
@@ -1443,18 +1537,18 @@ pub struct PollFd {
 }
 
 bitflags! {
-	pub struct PollEvents: u16 {
-		/// There is data to read.
-		const IN = 0x0001;
-		/// Writing is now possible.
-		const OUT = 0x0004;
-		/// Error condition (return only)
-		const ERR = 0x0008;
-		/// Hang up (return only)
-		const HUP = 0x0010;
-		/// Invalid request: fd not open (return only)
-		const INVAL = 0x0020;
-	}
+    pub struct PollEvents: u16 {
+        /// There is data to read.
+        const IN = 0x0001;
+        /// Writing is now possible.
+        const OUT = 0x0004;
+        /// Error condition (return only)
+        const ERR = 0x0008;
+        /// Hang up (return only)
+        const HUP = 0x0010;
+        /// Invalid request: fd not open (return only)
+        const INVAL = 0x0020;
+    }
 }
 
 const FD_PER_ITEM: usize = 8 * size_of::<u32>();

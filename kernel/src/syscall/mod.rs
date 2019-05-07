@@ -3,8 +3,8 @@
 use alloc::{string::String, sync::Arc, vec::Vec};
 use core::{fmt, slice, str};
 
-use bitflags::bitflags;
 use crate::rcore_fs::vfs::{FileType, FsError, INode, Metadata};
+use bitflags::bitflags;
 use rcore_memory::VMError;
 
 use crate::arch::cpu;
@@ -61,7 +61,6 @@ impl Syscall<'_> {
         self.thread.proc.lock()
     }
 
-
     /// Get current virtual memory
     pub fn vm(&self) -> MutexGuard<'_, MemorySet, SpinNoIrq> {
         self.thread.vm.lock()
@@ -116,7 +115,12 @@ impl Syscall<'_> {
             }
             SYS_MKDIRAT => self.sys_mkdirat(args[0], args[1] as *const u8, args[2]),
             SYS_MKNODAT => self.sys_mknodat(args[0], args[1] as *const u8, args[2], args[3]),
-            SYS_MKNOD=>self.sys_mknodat(crate::syscall::fs::AT_FDCWD, args[0] as *const u8, args[1], args[2]),
+            SYS_MKNOD => self.sys_mknodat(
+                crate::syscall::fs::AT_FDCWD,
+                args[0] as *const u8,
+                args[1],
+                args[2],
+            ),
 
             SYS_LINKAT => self.sys_linkat(
                 args[0],
@@ -410,16 +414,14 @@ impl Syscall<'_> {
             SYS_ARCH_PRCTL => self.sys_arch_prctl(args[0] as i32, args[1]),
             SYS_TIME => self.sys_time(args[0] as *mut u64),
             SYS_EPOLL_CREATE => self.unimplemented("epoll_create", Err(SysError::ENOSYS)),
-            SYS_INIT_MODULE=>{
+            SYS_INIT_MODULE => {
                 self.sys_init_module(args[0] as *const u8, args[1] as usize, args[2] as *const u8)
             }
-            SYS_FINIT_MODULE=>{
+            SYS_FINIT_MODULE => {
                 debug!("[LKM] sys_finit_module is unimplemented");
                 Err(SysError::ENOSYS)
             }
-            SYS_DELETE_MODULE=>{
-                self.sys_delete_module(args[0] as *const u8, args[1] as u32)
-            }
+            SYS_DELETE_MODULE => self.sys_delete_module(args[0] as *const u8, args[1] as u32),
             _ => return None,
         };
         Some(ret)
@@ -472,7 +474,7 @@ pub enum SysError {
     ENOLCK = 37,
     ENOSYS = 38,
     ENOTEMPTY = 39,
-    ELOOP=40,
+    ELOOP = 40,
     ENOTSOCK = 80,
     ENOPROTOOPT = 92,
     EPFNOSUPPORT = 96,
