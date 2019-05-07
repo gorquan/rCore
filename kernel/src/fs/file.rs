@@ -5,7 +5,7 @@ use core::fmt;
 
 use crate::lkm::cdev::{FileOperations, LockedCharDev};
 use crate::rcore_fs::vfs::{
-    FsError, INode, INodeContainer, Metadata, PollStatus, Result, VirtualFS,
+    FsError, INode, INodeContainer, Metadata, PollStatus, Result, RootFS,
 };
 
 #[derive(Clone)]

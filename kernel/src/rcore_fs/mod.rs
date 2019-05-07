@@ -16,15 +16,16 @@ use spin::RwLock;
 //    pub static ref VIRTUAL_FS: Arc<RwLock<vfs::VirtualFS>>=vfs::VirtualFS::init();
 //}
 
-pub static mut VIRTUAL_FS: Option<Arc<RwLock<vfs::VirtualFS>>> = None;
+pub static mut VIRTUAL_FS: Option<Arc<RwLock<vfs::RootFS>>> = None;
 
 pub fn init() {
     unsafe {
-        VIRTUAL_FS = Some(vfs::VirtualFS::init());
+        VIRTUAL_FS = Some(vfs::RootFS::init());
+        // XXX: ???
         vfs::ANONYMOUS_FS = Some(Arc::new(RwLock::new(unsafe { uninitialized() })));
     }
 }
 
-pub fn get_virtual_fs() -> &'static Arc<RwLock<vfs::VirtualFS>> {
+pub fn get_virtual_fs() -> &'static Arc<RwLock<vfs::RootFS>> {
     unsafe { VIRTUAL_FS.as_ref().unwrap() }
 }

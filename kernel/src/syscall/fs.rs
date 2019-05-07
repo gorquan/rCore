@@ -376,12 +376,12 @@ impl Syscall<'_> {
         let buf = unsafe { self.vm().check_write_array(buf, len)? };
 
         //use crate::rcore_fs::VIRTUAL_FS;
-        use crate::rcore_fs::vfs::VirtualFS;
+        use crate::rcore_fs::vfs::RootFS;
         use spin::RwLock;
         // TODO: a more graceful and natural implementation?
         let mut current_inode = Arc::clone(&proc.cwd.cwd);
         let root_inode_id = proc.cwd.root.inode.metadata().unwrap().inode;
-        let total_root_vfs: Arc<INodeContainer> = VirtualFS::getRootINode(get_virtual_fs());
+        let total_root_vfs: Arc<INodeContainer> = get_virtual_fs().read().root_inode();
         let total_inode_id = total_root_vfs.inode.metadata().unwrap().inode;
         let mut path_parts: Vec<String> = Vec::new();
         let mut unreachable = false;
@@ -402,8 +402,8 @@ impl Syscall<'_> {
                 break;
             } else {
                 //Safe to go down a stair.
-                let parent = unsafe { proc.cwd.forceResolveParent(&current_inode) };
-                let name = parent.findNameByChild(&current_inode)?;
+                let parent = unsafe { proc.cwd.force_resolve_parent(&current_inode) };
+                let name = parent.find_name_by_child(&current_inode)?;
                 path_parts.push(name);
                 current_inode = parent;
             }
@@ -594,7 +594,7 @@ impl Syscall<'_> {
         }
         let ic = Arc::clone(&file.inode_container);
         let mut writer = unsafe { DirentBufWriter::new(buf) };
-        let is_file_root = proc.cwd.hasReachedRoot(&ic);
+        let is_file_root = proc.cwd.has_reached_root(&ic);
         let is_current_very_root = ic.is_very_root();
         let file = proc.get_file(fd)?; //re-borrow?
         loop {
@@ -691,8 +691,8 @@ impl Syscall<'_> {
             .path_resolve(&old_start_directory, &oldpath, false)?;
         let (old_parent, old_name) = match old_file {
             PathResolveResult::IsDir { dir, .. } => {
-                let parent = dir.find(proc.cwd.hasReachedRoot(&dir), "..")?;
-                let name = parent.findNameByChild(&dir)?;
+                let parent = dir.find(proc.cwd.has_reached_root(&dir), "..")?;
+                let name = parent.find_name_by_child(&dir)?;
                 if name == "." || name == ".." {
                     //How dare you move root?
                     Err(FsError::DirNotEmpty)?;
@@ -823,13 +823,13 @@ impl Syscall<'_> {
             return Err(SysError::EBUSY);
         }
 
-        if proc.cwd.hasReachedRoot(inode) || inode.is_very_root() {
+        if proc.cwd.has_reached_root(inode) || inode.is_very_root() {
             return Err(SysError::EBUSY);
         }
         //now safely find parent.
         let parent = inode.find(false, "..")?;
         // inode is not a mountpoint, so two files lie in same fs.
-        let name = parent.findNameByChild(inode)?;
+        let name = parent.find_name_by_child(inode)?;
         parent.inode.unlink(&name)?;
         Ok(0)
     }
@@ -890,7 +890,7 @@ impl Syscall<'_> {
             PathResolveResult::IsDir { .. } => Err(SysError::EISDIR),
             PathResolveResult::NotExist { .. } => Err(SysError::ENOENT),
             PathResolveResult::IsFile { file, parent, .. } => {
-                let name = parent.findNameByChild(&file)?;
+                let name = parent.find_name_by_child(&file)?;
                 parent.inode.unlink(&name)?;
                 Ok(0)
             }

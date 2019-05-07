@@ -209,6 +209,7 @@ pub trait FileSystem: Sync + Send {
 use alloc::borrow::ToOwned;
 use alloc::boxed::Box;
 use alloc::collections::btree_map::*;
+use alloc::sync::Weak;
 use core::sync::*;
 use spin::RwLock;
 
@@ -217,82 +218,93 @@ use crate::rcore_fs_sfs::SimpleFileSystem;
 use alloc::slice::*;
 use core::mem::*;
 
-pub struct VirtualFS {
+type INodeId = usize;
+
+/// The filesystem on which all the other filesystems are mounted
+pub struct RootFS {
     pub filesystem: Arc<FileSystem>,
-    pub mountpoints: BTreeMap<usize, Arc<RwLock<VirtualFS>>>,
+    pub mountpoints: BTreeMap<INodeId, Arc<RwLock<RootFS>>>,
     pub self_mountpoint: Arc<INodeContainer>,
+    self_ref: Weak<RwLock<RootFS>>,
 }
 
+#[derive(Clone)]
 pub struct INodeContainer {
     pub inode: Arc<INode>, //TODO: deref to this
-    pub vfs: Arc<RwLock<VirtualFS>>,
+    pub vfs: Arc<RwLock<RootFS>>,
 }
 
-impl VirtualFS {
-    pub fn init() -> Arc<RwLock<VirtualFS>> {
-        //panic!("FS");
-        //assert_has_not_been_called!("VirtualFS::init must be called only once.");
-        //
-        let mut vfs = VirtualFS {
-            filesystem: VirtualFS::init_mount_sfs(),
+impl RootFS {
+    pub fn init() -> Arc<RwLock<Self>> {
+        RootFS {
+            filesystem: RootFS::init_mount_sfs(),
             mountpoints: BTreeMap::new(),
             self_mountpoint: Arc::new(unsafe { uninitialized() }), // This should NOT EVER BE ACCESSED!
-        };
-        //vfs.init_mount_sfs();
-        Arc::new(RwLock::new(vfs))
+            self_ref: Weak::default(),
+        }
+        .wrap()
+    }
+
+    /// Wrap pure `RootFS` with `Arc<RwLock<..>>`.
+    /// Used in constructors.
+    fn wrap(self) -> Arc<RwLock<Self>> {
+        // Create an Arc, make a Weak from it, then put it into the struct.
+        // It's a little tricky.
+        let fs = Arc::new(RwLock::new(self));
+        let weak = Arc::downgrade(&fs);
+        let ptr = Arc::into_raw(fs) as *mut RwLock<Self>;
+        unsafe {
+            (*ptr).write().self_ref = weak;
+            Arc::from_raw(ptr)
+        }
     }
 
     fn init_mount_sfs() -> Arc<FileSystem> {
-        let sfs = {
-            #[cfg(not(feature = "link_user"))]
-            let device = {
-                #[cfg(any(target_a = "riscv32", target_arch = "riscv64", target_arch = "x86_64"))]
-                {
-                    Arc::new(BlockDriver(
-                        crate::drivers::BLK_DRIVERS
-                            .read()
-                            .iter()
-                            .next()
-                            .expect("Block device not found")
-                            .clone(),
-                    ))
-                }
-                #[cfg(target_arch = "aarch64")]
-                {
-                    unimplemented!()
-                }
-            };
-            #[cfg(feature = "link_user")]
-            let device = {
-                extern "C" {
-                    fn _user_img_start();
-                    fn _user_img_end();
-                }
-                info!(
-                    "SFS linked to kernel, from {:08x} to {:08x}",
-                    _user_img_start as usize, _user_img_end as usize
-                );
-                Arc::new(unsafe { device::MemBuf::new(_user_img_start, _user_img_end) })
-            };
-
-            let sfs = SimpleFileSystem::open(device).expect("failed to open SFS");
-            sfs
+        #[cfg(not(feature = "link_user"))]
+        let device = {
+            #[cfg(any(target_a = "riscv32", target_arch = "riscv64", target_arch = "x86_64"))]
+            {
+                Arc::new(BlockDriver(
+                    crate::drivers::BLK_DRIVERS
+                        .read()
+                        .iter()
+                        .next()
+                        .expect("Block device not found")
+                        .clone(),
+                ))
+            }
+            #[cfg(target_arch = "aarch64")]
+            {
+                unimplemented!()
+            }
         };
-        sfs
+        #[cfg(feature = "link_user")]
+        let device = {
+            extern "C" {
+                fn _user_img_start();
+                fn _user_img_end();
+            }
+            info!(
+                "SFS linked to kernel, from {:08x} to {:08x}",
+                _user_img_start as usize, _user_img_end as usize
+            );
+            Arc::new(unsafe { device::MemBuf::new(_user_img_start, _user_img_end) })
+        };
+
+        SimpleFileSystem::open(device).expect("failed to open SFS")
     }
-    pub fn getRootINode(vfs: &Arc<RwLock<VirtualFS>>) -> Arc<INodeContainer> {
+
+    pub fn root_inode(&self) -> Arc<INodeContainer> {
         Arc::new(INodeContainer {
-            inode: vfs.read().filesystem.root_inode(),
-            vfs: Arc::clone(vfs),
+            inode: self.filesystem.root_inode(),
+            vfs: self.self_ref.upgrade().unwrap(),
         })
     }
-    pub fn overlayMountpoint(&self, ic: INodeContainer) -> Arc<INodeContainer> {
-        self.getOverlaidMountPoint(Arc::new(ic))
-    }
-    pub fn getOverlaidMountPoint(&self, ic: Arc<INodeContainer>) -> Arc<INodeContainer> {
+
+    pub fn overlaid_mount_point(&self, ic: Arc<INodeContainer>) -> Arc<INodeContainer> {
         let inode_id = ic.inode.metadata().unwrap().inode;
         if let Some(sub_vfs) = self.mountpoints.get(&inode_id) {
-            let mut sub_inode = VirtualFS::getRootINode(sub_vfs);
+            let mut sub_inode = sub_vfs.read().root_inode();
             //sub_inode.original_mountpoint=Some(Arc::new(ic));
             sub_inode
         } else {
@@ -301,12 +313,13 @@ impl VirtualFS {
     }
 }
 
+#[derive(Clone)]
 pub struct PathConfig {
     pub root: Arc<INodeContainer>, // ensured to be a dir.
-    pub cwd: Arc<INodeContainer>,  //ensured to be a dir.
+    pub cwd: Arc<INodeContainer>,  // ensured to be a dir.
 }
 
-// The enum used to represent result of a successful path resolve.
+/// The enum used to represent result of a successful path resolve.
 pub enum PathResolveResult {
     IsDir {
         // You can always get the parent directory by inode, so no necessity to take with parent.
@@ -325,12 +338,13 @@ pub enum PathResolveResult {
         name: String,
     },
 }
+
 // Path resolution must be done with a root.
 // A better name is "Filesystem Selector", like the "segment selector".
 impl PathConfig {
     pub fn init_root() -> PathConfig {
-        let root = VirtualFS::getRootINode(super::get_virtual_fs());
-        let cwd = Arc::clone(&root);
+        let root = super::get_virtual_fs().read().root_inode();
+        let cwd = root.clone();
         PathConfig { root, cwd }
     }
 
@@ -342,29 +356,26 @@ impl PathConfig {
     ) -> Result<PathResolveResult> {
         let mut follow_counter = 40;
         let depth_counter = 10;
-        let r = self.resolvePath(cwd, path, &mut follow_counter, depth_counter)?;
+        let r = self.resolve_path(cwd, path, &mut follow_counter, depth_counter)?;
         if resolve_last_symbol {
             if let PathResolveResult::IsFile { file, parent, .. } = r {
-                self.resolveSymbolRecursively(&parent, &file, &mut follow_counter, depth_counter)
-            } else {
-                Ok(r)
+                return self.resolve_symbol_recursively(&parent, &file, &mut follow_counter, depth_counter);
             }
-        } else {
-            Ok(r)
         }
+        Ok(r)
     }
 
-    pub fn resolveParent(&self, cwd: &Arc<INodeContainer>) -> Arc<INodeContainer> {
-        cwd.find(self.hasReachedRoot(&cwd), "..").unwrap() //There is no reason that this can fail, as long as cwd is really a directory.
+    pub fn resolve_parent(&self, cwd: &Arc<INodeContainer>) -> Arc<INodeContainer> {
+        cwd.find(self.has_reached_root(&cwd), "..").unwrap() // There is no reason that this can fail, as long as cwd is really a directory.
     }
 
-    // This call is used by getcwd() to detect possible leaks.
-    // All files are organized in a big tree, so it will eventually achieve the root.
-    pub unsafe fn forceResolveParent(&self, cwd: &Arc<INodeContainer>) -> Arc<INodeContainer> {
+    /// This call is used by getcwd() to detect possible leaks.
+    /// All files are organized in a big tree, so it will eventually achieve the root.
+    pub unsafe fn force_resolve_parent(&self, cwd: &Arc<INodeContainer>) -> Arc<INodeContainer> {
         cwd.find(false, "..").unwrap()
     }
 
-    pub fn resolvePath(
+    pub fn resolve_path(
         &self,
         cwd: &Arc<INodeContainer>,
         path: &str,
@@ -390,11 +401,11 @@ impl PathConfig {
                 continue;
             }
             debug!("Resolve part: {}", part);
-            let next = cwd.find(self.hasReachedRoot(&cwd), part)?;
+            let next = cwd.find(self.has_reached_root(&cwd), part)?;
             debug!("solve link");
             // Try solve symbolic link.
             let symlink_solve_result =
-                self.resolveSymbolRecursively(&cwd, &next, follow_counter, depth_counter)?;
+                self.resolve_symbol_recursively(&cwd, &next, follow_counter, depth_counter)?;
             match symlink_solve_result {
                 PathResolveResult::IsDir { dir } => {
                     cwd = dir;
@@ -409,7 +420,7 @@ impl PathConfig {
         }
         debug!("Last part {}", last_part);
         // Resolving last part.
-        let next = cwd.find(self.hasReachedRoot(&cwd), last_part);
+        let next = cwd.find(self.has_reached_root(&cwd), last_part);
         debug!("match next");
         match next {
             Ok(next) => {
@@ -433,11 +444,13 @@ impl PathConfig {
         }
     }
 
-    // Resolves symbol by one layer.
-    // TODO: Linux proc fs has some anti-POSIX magics here, like /proc/[pid]/root.
-    // In those cases, those magics points to strange places, without following symlink rules.
-    // This hack can be achieved here.
-    pub fn resolveSymbol(
+    /// Resolves symbol by one layer.
+    ///
+    /// TODO:
+    ///   Linux proc fs has some anti-POSIX magics here, like /proc/[pid]/root.
+    ///   In those cases, those magics points to strange places, without following symlink rules.
+    ///   This hack can be achieved here.
+    pub fn resolve_symbol(
         &self,
         cwd: &Arc<INodeContainer>,
         symbol: &Arc<INodeContainer>,
@@ -452,7 +465,7 @@ impl PathConfig {
             let mut content = [0u8; 256];
             let len = symbol.inode.read_at(0, &mut content)?;
             if let Ok(path) = str::from_utf8(&content[..len]) {
-                self.resolvePath(cwd, path, follow_counter, depth_counter - 1)
+                self.resolve_path(cwd, path, follow_counter, depth_counter - 1)
             } else {
                 return Err(FsError::NotDir);
             }
@@ -460,8 +473,9 @@ impl PathConfig {
             Err(FsError::SymLoop)
         }
     }
-    // Resolves symbol recursively. Note that a not-found will cause the resolved symbol pointing to the final file.
-    pub fn resolveSymbolRecursively(
+    /// Resolves symbol recursively.
+    /// Note that a not-found will cause the resolved symbol pointing to the final file.
+    pub fn resolve_symbol_recursively(
         &self,
         cwd: &Arc<INodeContainer>,
         symbol: &Arc<INodeContainer>,
@@ -472,7 +486,7 @@ impl PathConfig {
         let mut current_symbol = Arc::clone(symbol);
         let mut current_name = String::new();
         while current_symbol.inode.metadata().unwrap().type_ == FileType::SymLink {
-            let resolve_result = self.resolveSymbol(
+            let resolve_result = self.resolve_symbol(
                 &current_symbol_dir,
                 &current_symbol,
                 follow_counter,
@@ -504,45 +518,30 @@ impl PathConfig {
             })
         }
     }
-    pub fn hasReachedRoot(&self, current: &Arc<INodeContainer>) -> bool {
+    pub fn has_reached_root(&self, current: &INodeContainer) -> bool {
         Arc::ptr_eq(&current.vfs, &self.root.vfs)
             && self.root.inode.metadata().unwrap().inode == current.inode.metadata().unwrap().inode
     }
 }
-impl Clone for INodeContainer {
-    fn clone(&self) -> Self {
-        INodeContainer {
-            inode: Arc::clone(&self.inode),
-            vfs: Arc::clone(&self.vfs),
-        }
-    }
-}
 
-impl Clone for PathConfig {
-    fn clone(&self) -> Self {
-        PathConfig {
-            root: Arc::clone(&self.root),
-            cwd: Arc::clone(&self.cwd),
-        }
-    }
-}
+// XXX: what's the meaning?
+pub static mut ANONYMOUS_FS: Option<Arc<RwLock<RootFS>>> = None;
 
-pub static mut ANONYMOUS_FS: Option<Arc<RwLock<VirtualFS>>> = None;
-
-pub fn get_anonymous_fs() -> &'static Arc<RwLock<VirtualFS>> {
+pub fn get_anonymous_fs() -> &'static Arc<RwLock<RootFS>> {
     unsafe { ANONYMOUS_FS.as_ref().unwrap() }
 }
 
 impl INodeContainer {
-    pub fn is_very_root(self: &Arc<INodeContainer>) -> bool {
-        PathConfig::init_root().hasReachedRoot(self)
+    pub fn is_very_root(&self) -> bool {
+        PathConfig::init_root().has_reached_root(self)
     }
     pub fn is_root_inode(&self) -> bool {
         self.inode.fs().root_inode().metadata().unwrap().inode
             == self.inode.metadata().unwrap().inode
     }
 
-    //Creates an anonymous inode. Should not be used as a location at any time, or be totally released at any time.
+    /// Creates an anonymous inode.
+    /// Should not be used as a location at any time, or be totally released at any time.
     pub unsafe fn anonymous_inode(inode: Arc<INode>) -> Arc<INodeContainer> {
         Arc::new(INodeContainer {
             inode,
@@ -550,28 +549,28 @@ impl INodeContainer {
         })
     }
 
-    //Does a one-level finding.
+    /// Does a one-level finding.
     pub fn find(self: &Arc<INodeContainer>, root: bool, next: &str) -> Result<Arc<INodeContainer>> {
         debug!("finding name {}", next);
         debug!("in {:?}", self.inode.list().unwrap());
         match next {
-            "" => Ok(Arc::clone(&self)),
-            "." => Ok(Arc::clone(&self)),
+            "" | "." => Ok(Arc::clone(&self)),
             ".." => {
                 // Going Up
                 // We need to check these things:
                 // 1. Is going forward allowed, considering the current root?
-                // 2. Is going forward trespassing the filesystem border, thus requires falling back to parent of original_mountpoint?
+                // 2. Is going forward trespassing the filesystem border,
+                //    thus requires falling back to parent of original_mountpoint?
                 // TODO: check going up.
                 if root {
                     Ok(Arc::clone(&self))
                 } else if self.is_root_inode() {
-                    //Here is mountpoint.
+                    // Here is mountpoint.
                     self.vfs.read().self_mountpoint.find(root, "..")
                 } else {
                     // Not trespassing filesystem border. Parent and myself in the same filesystem.
                     Ok(Arc::new(INodeContainer {
-                        inode: self.inode.find(next)?, //Going up is handled by the filesystem. A better API?
+                        inode: self.inode.find(next)?, // Going up is handled by the filesystem. A better API?
                         vfs: Arc::clone(&self.vfs),
                     }))
                 }
@@ -579,45 +578,35 @@ impl INodeContainer {
             _ => {
                 // Going down may trespass the filesystem border.
                 // An INode replacement is required here.
-                let next_ic = INodeContainer {
+                let next_ic = Arc::new(INodeContainer {
                     inode: self.inode.find(next)?,
                     vfs: Arc::clone(&self.vfs),
-                };
+                });
                 debug!("find Ok!");
-                Ok(self.vfs.read().overlayMountpoint(next_ic))
+                Ok(self.vfs.read().overlaid_mount_point(next_ic))
             }
         }
     }
 
-    pub fn findNameByChild(
+    /// If `child` is a child of `self`, return its name.
+    pub fn find_name_by_child(
         self: &Arc<INodeContainer>,
         child: &Arc<INodeContainer>,
     ) -> Result<String> {
         for index in 0.. {
-            match self.inode.get_entry(index) {
-                Ok(name) => {
-                    match name.as_ref() {
-                        "." => {}
-                        ".." => {}
-                        _ => {
-                            let queryback = self.find(false, &name)?;
-                            let queryback = self.vfs.read().getOverlaidMountPoint(queryback);
-                            //TODO: mountpoint check!
-                            debug!("checking name {}", name);
-                            if Arc::ptr_eq(&queryback.vfs, &self.vfs)
-                                && queryback.inode.metadata().unwrap().inode
-                                    == child.inode.metadata().unwrap().inode
-                            {
-                                return Ok(name);
-                            }
-                        }
+            let name = self.inode.get_entry(index)?;
+            match name.as_ref() {
+                "." | ".." => {}
+                _ => {
+                    let queryback = self.find(false, &name)?;
+                    let queryback = self.vfs.read().overlaid_mount_point(queryback);
+                    // TODO: mountpoint check!
+                    debug!("checking name {}", name);
+                    if Arc::ptr_eq(&queryback.vfs, &self.vfs)
+                        && queryback.inode.metadata()?.inode == child.inode.metadata()?.inode
+                    {
+                        return Ok(name);
                     }
-                }
-                Err(FsError::EntryNotFound) => {
-                    return Err(FsError::EntryNotFound);
-                }
-                r => {
-                    return r;
                 }
             }
         }
