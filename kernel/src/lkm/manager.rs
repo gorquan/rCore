@@ -579,11 +579,10 @@ impl Syscall<'_> {
         len: usize,
         param_values: *const u8,
     ) -> SysResult {
+        // XXX: why need this?
         let mutex = Mutex::new(());
         for i in 0..10000 {
-            let lock = mutex.lock();
-            let func = Condvar::generateDropper(lock);
-            func();
+            let _ = mutex.lock();
         }
 
         let mut proc = self.process();
