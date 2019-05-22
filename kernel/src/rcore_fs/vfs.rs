@@ -248,7 +248,15 @@ impl VirtualFS{
         //vfs.init_mount_sfs();
         Arc::new(RwLock::new(vfs))
     }
-
+    // TODO: mount sfs onto root.
+    // This is somehow hard work to do: since you may want to unify the process.
+    // 1. Boot from a filesystem like initramfs, which can be a readonly SFS mounted onto root.
+    //    This means you can bundle kernel modules into kernel by packaging them in initramfs.
+    // 2. Mount /dev and place /dev/sda (while naming /dev/sda itself is a hard problem that is related with universal device management).
+    // 3. Remount root, replacing initramfs with /dev/sda (this requires connecting filesystem to device system).
+    //    A hacky approach to avoid implementing re-mounting is to mount /dev/sda under initramfs and perform a chroot.
+    //    But in this way you must simulate chroot-jailbreaking behaviour properly: even if some application breaks the jail, it should not ever touch initramfs, or you're caught cheating.
+    //    Or... you can swap the SFS with VIRTUAL_FS?
     fn init_mount_sfs()->Arc<FileSystem>{
         let sfs= {
             #[cfg(not(feature = "link_user"))]
@@ -291,6 +299,7 @@ impl VirtualFS{
     pub fn getOverlaidMountPoint(&self, ic: Arc<INodeContainer>)->Arc<INodeContainer>{
         let inode_id=ic.inode.metadata().unwrap().inode;
         if let Some(sub_vfs)=self.mountpoints.get(&inode_id){
+            info!("Overlaid!");
             let mut sub_inode=VirtualFS::getRootINode(sub_vfs);
             //sub_inode.original_mountpoint=Some(Arc::new(ic));
             sub_inode
@@ -497,7 +506,10 @@ impl INodeContainer{
         PathConfig::init_root().hasReachedRoot(self)
     }
     pub fn is_root_inode(&self)->bool{
-        self.inode.fs().root_inode().metadata().unwrap().inode==self.inode.metadata().unwrap().inode
+        let lh=self.inode.fs().root_inode().metadata().unwrap().inode;
+        let rh=self.inode.metadata().unwrap().inode;
+        info!("check root inode {} {}",lh,rh);
+        lh==rh
     }
 
     //Creates an anonymous inode. Should not be used as a location at any time, or be totally released at any time.
@@ -549,6 +561,7 @@ impl INodeContainer{
     }
 
     pub fn findNameByChild(self: &Arc<INodeContainer>, child: &Arc<INodeContainer>)->Result<String>{
+        info!("findNameByChild");
         for index in 0..{
             match self.inode.get_entry(index){
                 Ok(name)=>{
@@ -560,8 +573,8 @@ impl INodeContainer{
                             let queryback=self.find(false, &name)?;
                             let queryback=self.vfs.read().getOverlaidMountPoint(queryback);
                             //TODO: mountpoint check!
-                            debug!("checking name {}", name);
-                            if Arc::ptr_eq(&queryback.vfs, &self.vfs) && queryback.inode.metadata().unwrap().inode == child.inode.metadata().unwrap().inode{
+                            info!("checking name {}", name);
+                            if Arc::ptr_eq(&queryback.vfs, &child.vfs) && queryback.inode.metadata().unwrap().inode == child.inode.metadata().unwrap().inode{
                                 return Ok(name);
                             }
                         }

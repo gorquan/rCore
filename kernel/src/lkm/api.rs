@@ -53,4 +53,9 @@ pub extern "C" fn lkm_api_kfree(ptr: usize, size: usize){
 }
 
 
+#[no_mangle]
+pub extern "C" fn lkm_api_info(ptr: *const u8){
+    let text=unsafe{cstr_to_str(ptr, 1024)};
+    info!("{}", text);
+}
 

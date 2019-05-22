@@ -62,13 +62,19 @@ impl ModuleManager{
     }
     fn init_stub_symbols()->Vec<ModuleSymbol>{
         use super::ffi::file_operations::lkm_api_register_device;
+        use super::fs::*;
         vec! [
             export_stub!(lkm_api_pong),
             export_stub!(lkm_api_debug),
             export_stub!(lkm_api_query_symbol),
             export_stub!(lkm_api_register_device),
             export_stub!(lkm_api_kmalloc),
-            export_stub!(lkm_api_kfree)
+            export_stub!(lkm_api_kfree),
+            export_stub!(lkm_api_register_fs),
+            export_stub!(lkm_api_create_arc_inode),
+            export_stub!(lkm_api_release_arc_inode),
+            export_stub!(lkm_api_clone_arc_inode),
+            export_stub!(lkm_api_info)
         ]
     }
     pub fn resolve_symbol(&self, symbol: &str)->Option<usize>{
@@ -334,6 +340,7 @@ impl ModuleManager{
     }
 
     fn relocate_single_symbol(&mut self, base: usize, reloc_addr: usize, addend: usize, sti: usize, itype: usize, elf: &ElfFile, dynsym: &[DynEntry64], this_module: usize){
+        info!("Resolving symbol {}", sti);
         let sym_val=self.get_symbol_loc(sti, elf, dynsym, base, true,this_module).expect("[LKM] resolve symbol failed!");
         match itype as usize{
             loader::REL_NONE=>{}

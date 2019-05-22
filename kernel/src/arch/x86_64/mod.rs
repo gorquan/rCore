@@ -56,10 +56,13 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
     // Startup CDevManager
     crate::lkm::cdev::CDevManager::init();
 
+    // Startup FileSystemManager
+    crate::lkm::fs::FileSystemManager::init();
+
     crate::rcore_fs::init();
 
     // init cpu scheduler and process manager, and add user shell app in process manager
-    crate::process::init();
+    crate::process::init()  ;
 
 
     //wake up other CPUs
