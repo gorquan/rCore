@@ -1,6 +1,7 @@
 pub mod api;
 pub mod cdev;
 pub mod ffi;
+pub mod fs;
 pub mod hello_device;
 pub mod kernelvm;
 pub mod list_manager;

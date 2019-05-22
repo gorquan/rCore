@@ -1,4 +1,4 @@
-name:repeater-dev
+name:ramfs
 version:114
 api_version:514
 exported_symbols:init_module

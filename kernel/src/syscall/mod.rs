@@ -153,7 +153,7 @@ impl Syscall<'_> {
             SYS_STATFS => self.unimplemented("statfs", Err(SysError::EACCES)),
             SYS_FSTATFS => self.unimplemented("fstatfs", Err(SysError::EACCES)),
             SYS_SYNC => self.sys_sync(),
-            SYS_MOUNT => self.unimplemented("mount", Err(SysError::EACCES)),
+            SYS_MOUNT => self.sys_mount(args[0] as *const u8, args[1] as *const u8, args[2] as *const u8, args[3], args[4]),
             SYS_UMOUNT2 => self.unimplemented("umount2", Err(SysError::EACCES)),
 
             // memory

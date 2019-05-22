@@ -16,6 +16,8 @@ pub struct FileOperations {
     pub close: Option<extern "C" fn(file: usize)>
 }
 */
+use crate::lkm::ffi::*;
+use crate::lkm::cdev::{FileOperations, CharDev, CDevManager};
 use crate::fs::{FileHandle, SeekFrom};
 use crate::lkm::cdev::{CDevManager, CharDev, FileOperations};
 use crate::rcore_fs::vfs::{FsError, Metadata, PollStatus};
@@ -61,28 +63,8 @@ pub extern "C" fn lkm_api_register_device(config: *const CharDevFFI) -> usize {
     0
 }
 
-fn patch_isize_to_usize(s: isize) -> Result<usize, FsError> {
-    if s < 0 {
-        Err(FsError::NotSupported)
-    } else {
-        Ok(s as usize)
-    }
-}
-fn patch_i64_to_u64(s: i64) -> Result<u64, FsError> {
-    if s < 0 {
-        Err(FsError::NotSupported)
-    } else {
-        Ok(s as u64)
-    }
-}
-fn patch_isize_to_empty(s: isize) -> Result<(), FsError> {
-    if s == 0 {
-        Ok(())
-    } else {
-        Err(FsError::NotSupported)
-    }
-}
-impl FileOperations for FileOperationsFFI {
+
+impl FileOperations for FileOperationsFFI{
     fn open(&self) -> usize {
         (self.open)()
     }

@@ -64,3 +64,10 @@ pub extern "C" fn lkm_api_kfree(ptr: usize, size: usize) {
         crate::HEAP_ALLOCATOR.dealloc(ptr as *mut u8, Layout::from_size_align(size, 8).unwrap());
     }
 }
+
+
+#[no_mangle]
+pub extern "C" fn lkm_api_info(ptr: *const u8){
+    let text=unsafe{cstr_to_str(ptr, 1024)};
+    info!("{}", text);
+}

@@ -19,3 +19,7 @@ Cargo.lock
 
 # for vim
 *.swp
+
+# for IDEA
+.idea
+*/.idea

@@ -4,6 +4,7 @@ use core::cell::UnsafeCell;
 use core::cmp::min;
 use core::mem::size_of;
 
+
 use crate::rcore_fs::get_virtual_fs;
 #[cfg(not(target_arch = "mips"))]
 use crate::rcore_fs::vfs::Timespec;
@@ -20,6 +21,10 @@ use super::*;
 use crate::lkm::cdev::CDevManager;
 use alloc::slice::SliceConcatExt;
 use xmas_elf::dynamic::Tag::SymTabShIndex;
+
+use crate::lkm::cdev::CDevManager;
+use spin::RwLock;
+
 
 impl Syscall<'_> {
     pub fn sys_read(&mut self, fd: usize, base: *mut u8, len: usize) -> SysResult {
@@ -424,6 +429,7 @@ impl Syscall<'_> {
         Ok(buf.as_ptr() as usize)
     }
 
+
     fn impl_sys_stat(
         &mut self,
         start_directory: Arc<INodeContainer>,
@@ -431,6 +437,7 @@ impl Syscall<'_> {
         stat_ptr: *mut Stat,
         resolve_link: bool,
     ) -> SysResult {
+
         let proc = self.process();
 
         let path = unsafe { self.vm().check_and_clone_cstr(path)? };
@@ -937,6 +944,35 @@ impl Syscall<'_> {
         Ok(0)
     }
 
+
+    pub fn sys_mount(&mut self, source: *const u8, target: *const u8, fstype: *const u8, flags: usize, data: usize)->SysResult{
+        use crate::lkm::fs::*;
+        let mut proc = self.process();
+        let target = unsafe { self.vm().check_and_clone_cstr(target)? };
+        info!("mount: target: {}", target);
+        let ret=match proc.cwd.path_resolve(&proc.cwd.cwd, &target, false)?{
+            PathResolveResult::IsDir {dir}=>{
+                let mut vfs=dir.vfs.write();
+                let mtpt_inode=dir.inode.metadata().unwrap().inode;
+                let source = unsafe { self.vm().check_and_clone_cstr(source)? };
+                let fstype = unsafe { self.vm().check_and_clone_cstr(fstype)? };
+                let fsm=FileSystemManager::get().read();
+                let fs=fsm.mountFilesystem(&source, &fstype, flags as u64, data)?;
+                let new_vfs=Arc::new(RwLock::new(VirtualFS{
+                    filesystem: fs,
+                    mountpoints: BTreeMap::new(),
+                    self_mountpoint: Arc::clone(&dir)
+                }));
+                vfs.mountpoints.insert(mtpt_inode, new_vfs);
+                Ok(0 as usize)
+            },
+            PathResolveResult::NotExist {..}=>Err(SysError::ENOENT),
+            PathResolveResult::IsFile {file, parent,..}=>Err(SysError::ENOTDIR)
+        };
+        info!("mount: {} success", target);
+        ret
+
+    }
     pub fn sys_sendfile(
         &mut self,
         out_fd: usize,

@@ -259,6 +259,16 @@ impl RootFS {
         }
     }
 
+    // TODO: mount sfs onto root.
+    // This is somehow hard work to do: since you may want to unify the process.
+    // 1. Boot from a filesystem like initramfs, which can be a readonly SFS mounted onto root.
+    //    This means you can bundle kernel modules into kernel by packaging them in initramfs.
+    // 2. Mount /dev and place /dev/sda (while naming /dev/sda itself is a hard problem that is related with universal device management).
+    // 3. Remount root, replacing initramfs with /dev/sda (this requires connecting filesystem to device system).
+    //    A hacky approach to avoid implementing re-mounting is to mount /dev/sda under initramfs and perform a chroot.
+    //    But in this way you must simulate chroot-jailbreaking behaviour properly: even if some application breaks the jail, it should not ever touch initramfs, or you're caught cheating.
+    //    Or... you can swap the SFS with VIRTUAL_FS?
+
     fn init_mount_sfs() -> Arc<FileSystem> {
         #[cfg(not(feature = "link_user"))]
         let device = {
@@ -525,6 +535,9 @@ impl PathConfig {
 }
 
 // XXX: what's the meaning?
+      // The unsafe filesystem for Stdin, Stdout, anonymous pipe and so on.
+      // If you don't touch it you will not break it.
+      // But in fact you should detect file operations (e.g. fstat) on virtual files and prevent them.
 pub static mut ANONYMOUS_FS: Option<Arc<RwLock<RootFS>>> = None;
 
 pub fn get_anonymous_fs() -> &'static Arc<RwLock<RootFS>> {
@@ -587,6 +600,7 @@ impl INodeContainer {
             }
         }
     }
+
 
     /// If `child` is a child of `self`, return its name.
     pub fn find_name_by_child(
