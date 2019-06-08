@@ -175,11 +175,20 @@ impl Syscall<'_> {
         });
 
         // Read program file
-        let inode = proc.lookup_inode(&path)?;
-
+        use crate::fs::vfs::PathResolveResult;
+        let inode = match proc.cwd.path_resolve(&proc.cwd.cwd, &path, true)? {
+            PathResolveResult::IsFile { file, .. } => Arc::clone(&file.inode),
+            PathResolveResult::IsDir { .. } => {
+                return Err(SysError::EISDIR);
+            }
+            PathResolveResult::NotExist { .. } => {
+                return Err(SysError::ENOENT);
+            }
+        };
         // Make new Thread
         let (mut vm, entry_addr, ustack_top) =
-            Thread::new_user_vm(&inode, &path, args, envs).map_err(|_| SysError::EINVAL)?;
+            Thread::new_user_vm(&inode, args, envs, Some(&proc.cwd))
+                .map_err(|_| SysError::EINVAL)?;
 
         // Activate new page table
         core::mem::swap(&mut *self.vm(), &mut vm);
@@ -187,8 +196,6 @@ impl Syscall<'_> {
             self.vm().activate();
         }
 
-        // Modify exec path
-        proc.exec_path = path.clone();
         drop(proc);
 
         // Modify the TrapFrame

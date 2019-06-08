@@ -8,6 +8,8 @@
 #![feature(global_asm)]
 #![feature(fnbox)]
 #![feature(maybe_uninit)]
+#![feature(arbitrary_self_types)]
+#![feature(slice_concat_ext)]
 #![deny(unused_must_use)]
 #![no_std]
 

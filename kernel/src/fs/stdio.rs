@@ -6,9 +6,9 @@ use core::any::Any;
 use rcore_fs::vfs::*;
 
 use super::ioctl::*;
+use crate::fs::vfs::INodeContainer;
 use crate::sync::Condvar;
 use crate::sync::SpinNoIrqLock as Mutex;
-
 #[derive(Default)]
 pub struct Stdin {
     buf: Mutex<VecDeque<char>>,
@@ -49,8 +49,20 @@ impl Stdin {
 pub struct Stdout;
 
 lazy_static! {
-    pub static ref STDIN: Arc<Stdin> = Arc::new(Stdin::default());
-    pub static ref STDOUT: Arc<Stdout> = Arc::new(Stdout::default());
+    pub static ref STDIN_INODE: Arc<Stdin> = Arc::new(Stdin::default());
+    pub static ref STDOUT_INODE: Arc<Stdout> = Arc::new(Stdout::default());
+}
+fn get_stdin() -> Arc<Stdin> {
+    Arc::clone(&STDIN_INODE)
+}
+fn get_stdout() -> Arc<Stdout> {
+    Arc::clone(&STDOUT_INODE)
+}
+lazy_static! {
+    pub static ref STDIN: Arc<INodeContainer> =
+        unsafe { INodeContainer::anonymous_inode(get_stdin()) };
+    pub static ref STDOUT: Arc<INodeContainer> =
+        unsafe { INodeContainer::anonymous_inode(get_stdout()) };
 }
 
 // TODO: better way to provide default impl?

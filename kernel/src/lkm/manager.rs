@@ -624,5 +624,6 @@ impl ModuleManager {
         //let lkmm: Mutex<Option<ModuleManager>>=Mutex::new(None);
         LKM_MANAGER.lock().replace(kmm);
         info!("[LKM] Loadable Kernel Module Manager loaded!");
+        super::fs::FileSystemManager::init()
     }
 }

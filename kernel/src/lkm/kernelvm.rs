@@ -56,7 +56,7 @@ lazy_static! {
     pub static ref KERNELVM_MANAGER: LockedVMM = Mutex::new(VirtualMemorySpaceManager::new());
 }
 
-/// Represents a contiguous virtual area: like the ancient const_reloc.
+/// Represents a contiguous virtual area: like the ancient loader.
 /// Use RAII for exception handling
 pub struct VirtualSpace {
     start: usize,

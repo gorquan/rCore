@@ -5,6 +5,7 @@ use rcore_memory::PAGE_SIZE;
 use crate::memory::GlobalFrameAlloc;
 
 use super::*;
+use crate::fs::vfs::INodeContainer;
 
 impl Syscall<'_> {
     pub fn sys_mmap(
@@ -52,7 +53,29 @@ impl Syscall<'_> {
             return Ok(addr);
         } else {
             let file = proc.get_file(fd)?;
-            info!("mmap path is {} ", &*file.path);
+            //info!("mmap path is {} ", &*file.path);
+            // TODO: Breaking change: /dev/fb0 now no longer works.
+            //  This should be solved by some real device file.
+            //  By the way: there are times when mmap cannot be implemented by read_at.
+            //  (e.g. in Linux UIO, read()/select() is used for detecting interrupt and will return the count of interrupts in total,
+            //   while mmap() is used for mapping Memory mapped I/O into user space.)
+            let ic = file.inode();
+            let inode = Arc::clone(&ic.inode);
+            self.vm().push(
+                addr,
+                addr + len,
+                prot.to_attr(),
+                File {
+                    file: INodeForMap(inode),
+                    mem_start: addr,
+                    file_start: offset,
+                    file_end: offset + len,
+                    allocator: GlobalFrameAlloc,
+                },
+                "mmap_file",
+            );
+            return Ok(addr);
+            /*
             match &*file.path {
                 "/dev/fb0" => {
                     use crate::arch::board::fb::FRAME_BUFFER;
@@ -88,6 +111,7 @@ impl Syscall<'_> {
                     return Ok(addr);
                 }
             };
+            */
         }
     }
 

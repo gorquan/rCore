@@ -20,10 +20,11 @@ use crate::memory::{
 use crate::sync::{Condvar, SpinNoIrqLock as Mutex};
 
 use super::abi::{self, ProcInitInfo};
+use crate::fs::vfs::{INodeContainer, PathConfig};
+use crate::fs::{STDIN, STDOUT};
 use crate::processor;
 use core::mem::MaybeUninit;
 use rcore_fs::vfs::INode;
-
 pub struct Thread {
     context: Context,
     kstack: KernelStack,
@@ -61,8 +62,7 @@ pub struct Process {
     // resources
     pub vm: Arc<Mutex<MemorySet>>,
     pub files: BTreeMap<usize, FileLike>,
-    pub cwd: String,
-    pub exec_path: String,
+    pub cwd: PathConfig,
     futexes: BTreeMap<usize, Arc<Condvar>>,
 
     // relationship
@@ -122,8 +122,7 @@ impl Thread {
             proc: Process {
                 vm,
                 files: BTreeMap::default(),
-                cwd: String::from("/"),
-                exec_path: String::new(),
+                cwd: PathConfig::init_root(),
                 futexes: BTreeMap::default(),
                 pid: Pid(0),
                 parent: Weak::new(),
@@ -140,9 +139,9 @@ impl Thread {
     /// Return `(MemorySet, entry_point, ustack_top)`
     pub fn new_user_vm(
         inode: &Arc<INode>,
-        exec_path: &str,
         mut args: Vec<String>,
         envs: Vec<String>,
+        ld_search_path: Option<&PathConfig>,
     ) -> Result<(MemorySet, usize, usize), &'static str> {
         // Read ELF header
         // 0x3c0: magic number from ld-musl.so
@@ -176,16 +175,19 @@ impl Thread {
 
         // Check interpreter (for dynamic link)
         if let Ok(loader_path) = elf.get_interpreter() {
+            panic!("Shared library not ready");
+            /*
             // assuming absolute path
             let inode = crate::fs::ROOT_INODE
                 .lookup_follow(loader_path, FOLLOW_MAX_DEPTH)
                 .map_err(|_| "interpreter not found")?;
-            // modify args for const_reloc
+            // modify args for loader
             args[0] = exec_path.into();
             args.insert(0, loader_path.into());
-            // Elf const_reloc should not have INTERP
+            // Elf loader should not have INTERP
             // No infinite loop
             return Thread::new_user_vm(&inode, exec_path, args, envs);
+            */
         }
 
         // Make page table
@@ -242,11 +244,12 @@ impl Thread {
     /// Make a new user process from ELF `data`
     pub fn new_user(
         inode: &Arc<INode>,
-        exec_path: &str,
         args: Vec<String>,
         envs: Vec<String>,
+        ld_search_path: Option<&PathConfig>,
     ) -> Box<Thread> {
-        let (vm, entry_addr, ustack_top) = Self::new_user_vm(inode, exec_path, args, envs).unwrap();
+        let (vm, entry_addr, ustack_top) =
+            Self::new_user_vm(inode, args, envs, ld_search_path).unwrap();
 
         let vm_token = vm.token();
         let vm = Arc::new(Mutex::new(vm));
@@ -256,40 +259,37 @@ impl Thread {
         files.insert(
             0,
             FileLike::File(FileHandle::new(
-                crate::fs::STDIN.clone(),
+                Arc::clone(&STDIN),
                 OpenOptions {
                     read: true,
                     write: false,
                     append: false,
                     nonblock: false,
                 },
-                String::from("stdin"),
             )),
         );
         files.insert(
             1,
             FileLike::File(FileHandle::new(
-                crate::fs::STDOUT.clone(),
+                Arc::clone(&STDOUT),
                 OpenOptions {
                     read: false,
                     write: true,
                     append: false,
                     nonblock: false,
                 },
-                String::from("stdout"),
             )),
         );
         files.insert(
             2,
             FileLike::File(FileHandle::new(
-                crate::fs::STDOUT.clone(),
+                Arc::clone(&STDOUT),
                 OpenOptions {
                     read: false,
                     write: true,
                     append: false,
                     nonblock: false,
                 },
-                String::from("stderr"),
             )),
         );
 
@@ -303,8 +303,7 @@ impl Thread {
             proc: Process {
                 vm,
                 files,
-                cwd: String::from("/"),
-                exec_path: String::from(exec_path),
+                cwd: PathConfig::init_root(),
                 futexes: BTreeMap::default(),
                 pid: Pid(0),
                 parent: Weak::new(),
@@ -330,7 +329,6 @@ impl Thread {
             vm: vm.clone(),
             files: proc.files.clone(),
             cwd: proc.cwd.clone(),
-            exec_path: proc.exec_path.clone(),
             futexes: BTreeMap::default(),
             pid: Pid(0),
             parent: Arc::downgrade(&self.proc),
@@ -516,6 +514,7 @@ impl ElfExt for ElfFile<'_> {
     }
 }
 
+// TODO: this is bad design! You are not likely to fall mmap() onto read_at().
 #[derive(Clone)]
 pub struct INodeForMap(pub Arc<INode>);
 

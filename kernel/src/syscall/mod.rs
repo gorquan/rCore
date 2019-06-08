@@ -52,7 +52,7 @@ pub fn syscall(id: usize, args: [usize; 6], tf: &mut TrapFrame) -> isize {
 }
 
 /// All context needed for syscall
-struct Syscall<'a> {
+pub struct Syscall<'a> {
     thread: &'a mut Thread,
     tf: &'a mut TrapFrame,
 }
@@ -161,7 +161,13 @@ impl Syscall<'_> {
             SYS_STATFS => self.unimplemented("statfs", Err(SysError::EACCES)),
             SYS_FSTATFS => self.unimplemented("fstatfs", Err(SysError::EACCES)),
             SYS_SYNC => self.sys_sync(),
-            SYS_MOUNT => self.unimplemented("mount", Err(SysError::EACCES)),
+            SYS_MOUNT => self.sys_mount(
+                args[0] as *const u8,
+                args[1] as *const u8,
+                args[2] as *const u8,
+                args[3],
+                args[4],
+            ),
             SYS_UMOUNT2 => self.unimplemented("umount2", Err(SysError::EACCES)),
 
             // memory
@@ -486,6 +492,7 @@ pub enum SysError {
     ENOLCK = 37,
     ENOSYS = 38,
     ENOTEMPTY = 39,
+    ELOOP = 40,
     ENOTSOCK = 80,
     ENOPROTOOPT = 92,
     EPFNOSUPPORT = 96,
@@ -540,9 +547,10 @@ impl fmt::Display for SysError {
                 ERANGE => "Math result not representable",
                 EDEADLK => "Resource deadlock would occur",
                 ENAMETOOLONG => "File name too long",
-                ENOLCK => "No record locks available",
+                ENOLCK => "Too many symbolic links encountered",
                 ENOSYS => "Function not implemented",
                 ENOTEMPTY => "Directory not empty",
+                ELOOP => "",
                 ENOTSOCK => "Socket operation on non-socket",
                 ENOPROTOOPT => "Protocol not available",
                 EPFNOSUPPORT => "Protocol family not supported",

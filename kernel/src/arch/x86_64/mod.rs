@@ -62,6 +62,9 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
     driver::init(boot_info);
     // init pci/bus-based devices ,e.g. Intel 10Gb NIC, ...
     crate::drivers::init();
+    // start vfs.
+    // TODO: Starting vfs here is too late.
+    crate::fs::init();
     // init cpu scheduler and process manager, and add user shell app in process manager
     crate::process::init();
 

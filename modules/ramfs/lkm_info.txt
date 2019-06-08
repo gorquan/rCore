@@ -1,0 +1,5 @@
+name:ramfs
+version:1
+api_version:1
+exported_symbols:init_module
+dependence:

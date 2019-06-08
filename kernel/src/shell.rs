@@ -1,6 +1,6 @@
 //! Kernel shell
 
-use crate::fs::ROOT_INODE;
+use crate::fs::vfs::{PathConfig, PathResolveResult};
 use crate::process::*;
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -19,44 +19,58 @@ pub fn add_user_shell() {
     //    #[cfg(not(target_arch = "x86_64"))]
     #[cfg(not(feature = "board_rocket_chip"))]
     let init_shell = "/busybox"; //from docker-library
-
-    // fd is not available on rocket chip
+                                 // fd is not available on rocket chip
     #[cfg(feature = "board_rocket_chip")]
     let init_shell = "/rust/sh";
-
     #[cfg(target_arch = "x86_64")]
     let init_envs =
         vec!["PATH=/usr/sbin:/usr/bin:/sbin:/bin:/usr/x86_64-alpine-linux-musl/bin".into()];
 
     #[cfg(not(target_arch = "x86_64"))]
     let init_envs = Vec::new();
-
+    info!("RootFS on Raspi+!");
     let init_args = vec!["busybox".into(), "ash".into()];
-
-    if let Ok(inode) = ROOT_INODE.lookup(init_shell) {
-        processor()
-            .manager()
-            .add(Thread::new_user(&inode, init_shell, init_args, init_envs));
+    let root_path = PathConfig::init_root();
+    info!("root_path");
+    if let Ok(PathResolveResult::IsFile { file: inode, .. }) =
+        root_path.path_resolve(&root_path.root, "busybox", true)
+    {
+        info!("resolved");
+        processor().manager().add(Thread::new_user(
+            &inode.inode,
+            init_args,
+            init_envs,
+            Some(&root_path),
+        ));
     } else {
         processor().manager().add(Thread::new_kernel(shell, 0));
     }
 }
 
 #[cfg(feature = "run_cmdline")]
+
 pub fn add_user_shell() {
+    info!("RootFS cmdline on Raspi!");
     use crate::drivers::CMDLINE;
     let cmdline = CMDLINE.read();
-    let inode = ROOT_INODE.lookup(&cmdline).unwrap();
-    processor().manager().add(Thread::new_user(
-        &inode,
-        &cmdline,
-        cmdline.split(' ').map(|s| s.into()).collect(),
-        Vec::new(),
-    ));
+    let root_path = PathConfig::init_root();
+    if let Ok(PathResolveResult::IsFile { file: inode, .. }) =
+        root_path.path_resolve(&root_path.root, "sh", true)
+    {
+        processor().manager().add(Thread::new_user(
+            &inode.inode,
+            cmdline.split(' ').map(|s| s.into()).collect(),
+            Vec::new(),
+            Some(&root_path),
+        ));
+    } else {
+        panic!("cmdline not found");
+    }
 }
 
 pub extern "C" fn shell(_arg: usize) -> ! {
-    let files = ROOT_INODE.list().unwrap();
+    let root_path = PathConfig::init_root();
+    let files = root_path.cwd.inode.list().unwrap();
     println!("Available programs: {:?}", files);
     let mut history = Vec::new();
 
@@ -66,14 +80,18 @@ pub extern "C" fn shell(_arg: usize) -> ! {
         if cmd == "" {
             continue;
         }
+
         let name = cmd.trim().split(' ').next().unwrap();
-        if let Ok(inode) = ROOT_INODE.lookup(name) {
+        if let Ok(PathResolveResult::IsFile { file: inode, .. }) =
+            root_path.path_resolve(&root_path.root, &name, true)
+        {
             let _tid = processor().manager().add(Thread::new_user(
-                &inode,
-                &cmd,
+                &inode.inode,
                 cmd.split(' ').map(|s| s.into()).collect(),
                 Vec::new(),
+                Some(&root_path),
             ));
+
         // TODO: wait until process exits, or use user land shell completely
         } else {
             println!("Program not exist");
@@ -218,7 +236,7 @@ fn get_line(history: &mut Vec<Vec<u8>>) -> String {
 }
 
 fn get_char() -> u8 {
-    crate::fs::STDIN.pop() as u8
+    crate::fs::STDIN_INODE.pop() as u8
 }
 
 fn put_char(ch: u8) {
