@@ -7,13 +7,12 @@ use core::mem::uninitialized;
 use core::ops::Deref;
 use core::str;
 use rcore_fs::dev::block_cache::BlockCache;
+use crate::fs::device;
 use rcore_fs::vfs::Result;
 use rcore_fs::vfs::{FileSystem, FileType, FsError, INode};
 use rcore_fs_sfs::{INodeId, SimpleFileSystem};
 use spin::RwLock;
 
-// TODO: FsError::SymLoop
-const SYM_LOOP: FsError = FsError::InvalidParam;
 /// The filesystem on which all the other filesystems are mounted
 pub struct VirtualFS {
     pub filesystem: Arc<FileSystem>,
@@ -283,7 +282,7 @@ impl PathConfig {
         depth_counter: usize,
     ) -> Result<PathResolveResult> {
         if depth_counter == 0 {
-            return Err(SYM_LOOP);
+            return Err(FsError::SymLoop);
         }
         if *follow_counter > 0 {
             *follow_counter -= 1;
@@ -295,7 +294,7 @@ impl PathConfig {
                 return Err(FsError::NotDir);
             }
         } else {
-            Err(SYM_LOOP)
+            Err(FsError::SymLoop)
         }
     }
     /// Resolves symbol recursively.
