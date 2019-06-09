@@ -1,4 +1,5 @@
 use crate::drivers::BlockDriver;
+use crate::fs::device;
 use alloc::collections::btree_map::BTreeMap;
 use alloc::string::String;
 use alloc::sync::{Arc, Weak};
@@ -7,7 +8,6 @@ use core::mem::uninitialized;
 use core::ops::Deref;
 use core::str;
 use rcore_fs::dev::block_cache::BlockCache;
-use crate::fs::device;
 use rcore_fs::vfs::Result;
 use rcore_fs::vfs::{FileSystem, FileType, FsError, INode};
 use rcore_fs_sfs::{INodeId, SimpleFileSystem};
