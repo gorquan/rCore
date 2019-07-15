@@ -59,8 +59,7 @@ impl Syscall<'_> {
             //  By the way: there are times when mmap cannot be implemented by read_at.
             //  (e.g. in Linux UIO, read()/select() is used for detecting interrupt and will return the count of interrupts in total,
             //   while mmap() is used for mapping Memory mapped I/O into user space.)
-            let ic = file.inode();
-            let inode = Arc::clone(&ic.inode);
+            let inode = file.inode();
             self.vm().push(
                 addr,
                 addr + len,

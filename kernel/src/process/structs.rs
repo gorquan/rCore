@@ -195,7 +195,7 @@ impl Thread {
                 .path_resolve(&lsp.root, loader_path, true)
                 .map_err(|_| "interpreter not found")?
             {
-                PathResolveResult::IsFile { file, .. } => file,
+                PathResolveResult::IsFile { file, .. } => file as Arc<dyn INode>,
                 _ => {
                     return Err("interpreter not found");
                 }
@@ -208,7 +208,7 @@ impl Thread {
                 .read_at(0, &mut interp_data)
                 .map_err(|_| "failed to read from INode")?;
             let elf_interp = ElfFile::new(&interp_data)?;
-            elf_interp.append_as_interpreter(&interp_inode.inode, &mut vm, bias);
+            elf_interp.append_as_interpreter(&interp_inode, &mut vm, bias);
             info!("entry: {:x}", elf.header.pt2.entry_point() as usize);
             auxv.insert(abi::AT_ENTRY, elf.header.pt2.entry_point() as usize);
             auxv.insert(abi::AT_BASE, bias);

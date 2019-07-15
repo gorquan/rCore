@@ -308,18 +308,14 @@ impl Syscall<'_> {
             }
             PathResolveResult::NotExist { parent, name } => {
                 if flags.contains(OpenFlags::CREATE) {
-                    Arc::new(INodeContainer {
-                        inode: parent.inode.create(&name, FileType::File, mode as u32)?,
-                        vfs: Arc::clone(&parent.vfs),
-                    })
+                    parent.create(&name, FileType::File, mode as u32)?
                 } else {
                     return Err(SysError::ENOENT);
                 }
             }
         };
 
-        let metadata = ic.inode.metadata()?;
-        let file = if metadata.type_ == FileType::CharDevice {
+        let file = if ic.metadata()?.type_ == FileType::CharDevice {
             panic!("Device file not supported!");
         } else {
             FileLike::File(FileHandle::new(ic, flags.to_options()))
@@ -385,13 +381,13 @@ impl Syscall<'_> {
         use spin::RwLock;
         // TODO: a more graceful and natural implementation?
         let mut current_inode = Arc::clone(&proc.cwd.cwd);
-        let root_inode_id = proc.cwd.root.inode.metadata().unwrap().inode;
+        let root_inode_id = proc.cwd.root.metadata().unwrap().inode;
         let total_root_vfs: Arc<INodeContainer> = get_virtual_fs().read().root_inode();
-        let total_inode_id = total_root_vfs.inode.metadata().unwrap().inode;
+        let total_inode_id = total_root_vfs.metadata().unwrap().inode;
         let mut path_parts: Vec<String> = Vec::new();
         let mut unreachable = false;
         loop {
-            let current_inode_id = current_inode.inode.metadata().unwrap().inode;
+            let current_inode_id = current_inode.metadata().unwrap().inode;
             if Arc::ptr_eq(&current_inode.vfs, &proc.cwd.root.vfs)
                 && current_inode_id == root_inode_id
             {
@@ -453,7 +449,7 @@ impl Syscall<'_> {
             }
         });
 
-        let stat = Stat::from(inode.inode.metadata()?);
+        let stat = Stat::from(inode.metadata()?);
         *stat_ref = stat;
         Ok(0)
     }
@@ -517,14 +513,13 @@ impl Syscall<'_> {
         let slice = unsafe { self.vm().check_write_array(base, len)? };
         info!("readlink: path: {:?}, base: {:?}, len: {}", path, base, len);
 
-        let inode = &(match proc.cwd.path_resolve(&proc.cwd.cwd, &path, false)? {
+        let inode = match proc.cwd.path_resolve(&proc.cwd.cwd, &path, false)? {
             PathResolveResult::IsDir { dir } => dir,
             PathResolveResult::IsFile { file, .. } => file,
             PathResolveResult::NotExist { .. } => {
                 return Err(SysError::ENOENT);
             }
-        })
-        .inode;
+        };
 
         if inode.metadata()?.type_ == FileType::SymLink {
             // TODO: recursive link resolution and loop detection
@@ -574,7 +569,7 @@ impl Syscall<'_> {
                 return Err(SysError::ENOENT);
             }
         });
-        inode.inode.resize(len)?;
+        inode.resize(len)?;
         Ok(0)
     }
 
@@ -614,7 +609,7 @@ impl Syscall<'_> {
             // TODO: get ino from dirent
 
             let target = ic.find(is_file_root || is_current_very_root, &name)?;
-            let info = target.inode.metadata()?;
+            let info = target.metadata()?;
             let ok = writer.try_write(
                 info.inode as u64,
                 DirentType::from_type(&info.type_).bits(),
@@ -732,8 +727,7 @@ impl Syscall<'_> {
         };
         if Arc::ptr_eq(&old_parent.vfs, &new_parent.vfs) {
             old_parent
-                .inode
-                .move_(&old_name, &new_parent.inode, &new_name)?;
+                .move_(&old_name, &(new_parent as Arc<dyn INode>), &new_name)?;
         } else {
             Err(FsError::NotSameFs)?;
         }
@@ -770,9 +764,7 @@ impl Syscall<'_> {
                 parent,
                 name: file_name,
             } => {
-                parent
-                    .inode
-                    .create(&file_name, FileType::Dir, mode as u32)?;
+                parent.create(&file_name, FileType::Dir, mode as u32)?;
                 return Ok(0);
             }
         }
@@ -812,9 +804,7 @@ impl Syscall<'_> {
 
                 // TODO: current sfs impl does not allow creating CharDevice file.
                 // Fix this.
-                let inode = parent
-                    .inode
-                    .create(&file_name, FileType::CharDevice, mode as u32)?;
+                let inode = parent.create(&file_name, FileType::CharDevice, mode as u32)?;
                 return Ok(0);
             }
         }
@@ -845,7 +835,7 @@ impl Syscall<'_> {
         let parent = inode.find(false, "..")?;
         // inode is not a mountpoint, so two files lie in same fs.
         let name = parent.find_name_by_child(inode)?;
-        parent.inode.unlink(&name)?;
+        parent.unlink(&name)?;
         Ok(0)
     }
 
@@ -869,7 +859,7 @@ impl Syscall<'_> {
             "linkat: olddirfd: {}, oldpath: {:?}, newdirfd: {}, newpath: {:?}, flags: {:?}",
             olddirfd as isize, oldpath, newdirfd as isize, newpath, flags
         );
-        let inode = &(match proc.cwd.path_resolve(&proc.cwd.cwd, &oldpath, false)? {
+        let inode = match proc.cwd.path_resolve(&proc.cwd.cwd, &oldpath, false)? {
             PathResolveResult::IsDir { dir } => {
                 return Err(SysError::EISDIR);
             }
@@ -877,11 +867,10 @@ impl Syscall<'_> {
             PathResolveResult::NotExist { .. } => {
                 return Err(SysError::ENOENT);
             }
-        })
-        .inode;
+        };
         match proc.cwd.path_resolve(&proc.cwd.cwd, &newpath, false)? {
             PathResolveResult::NotExist { parent, name } => {
-                parent.inode.link(&name, inode)?;
+                parent.link(&name, &(inode as Arc<dyn INode>))?;
                 Ok(0)
             }
             _ => Err(SysError::EEXIST),
@@ -906,7 +895,7 @@ impl Syscall<'_> {
             PathResolveResult::NotExist { .. } => Err(SysError::ENOENT),
             PathResolveResult::IsFile { file, parent, .. } => {
                 let name = parent.find_name_by_child(&file)?;
-                parent.inode.unlink(&name)?;
+                parent.unlink(&name)?;
                 Ok(0)
             }
         }
@@ -949,8 +938,8 @@ impl Syscall<'_> {
 
     pub fn sys_sync(&mut self) -> SysResult {
         //TODO: recursive sync
-        //use crate::fs::vfs::VirtualFS;
-        get_virtual_fs().read().filesystem.sync()?;
+        use rcore_fs::vfs::FileSystem;
+        get_virtual_fs().read().sync()?;
         Ok(0)
     }
 
@@ -970,20 +959,12 @@ impl Syscall<'_> {
         let ret = match proc.cwd.path_resolve(&proc.cwd.cwd, &target, false)? {
             PathResolveResult::IsDir { dir } => {
                 let mut vfs = dir.vfs.write();
-                let mtpt_inode = dir.inode.metadata().unwrap().inode;
                 let source = unsafe { check_and_clone_cstr(source)? };
                 let fstype = unsafe { check_and_clone_cstr(fstype)? };
                 let fsm = FileSystemManager::get().read();
                 drop(proc);
                 let fs = fsm.mountFilesystem(self, &source, &fstype, flags as u64, data)?;
-                let new_vfs = VirtualFS {
-                    filesystem: fs,
-                    mountpoints: BTreeMap::new(),
-                    self_mountpoint: Arc::clone(&dir),
-                    self_ref: Weak::default(),
-                }
-                .wrap();
-                vfs.mountpoints.insert(mtpt_inode, new_vfs);
+                dir.mount(fs)?;
                 Ok(0 as usize)
             }
             PathResolveResult::NotExist { .. } => Err(SysError::ENOENT),

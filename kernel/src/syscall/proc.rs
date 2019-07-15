@@ -177,13 +177,9 @@ impl Syscall<'_> {
         // Read program file
         use crate::fs::vfs::PathResolveResult;
         let inode = match proc.cwd.path_resolve(&proc.cwd.cwd, &path, true)? {
-            PathResolveResult::IsFile { file, .. } => Arc::clone(&file.inode),
-            PathResolveResult::IsDir { .. } => {
-                return Err(SysError::EISDIR);
-            }
-            PathResolveResult::NotExist { .. } => {
-                return Err(SysError::ENOENT);
-            }
+            PathResolveResult::IsFile { file, .. } => file as Arc<dyn INode>,
+            PathResolveResult::IsDir { .. } => return Err(SysError::EISDIR),
+            PathResolveResult::NotExist { .. } => return Err(SysError::ENOENT),
         };
         // Make new Thread
         let (mut vm, entry_addr, ustack_top) =

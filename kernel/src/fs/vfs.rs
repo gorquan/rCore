@@ -4,40 +4,35 @@ use alloc::collections::btree_map::BTreeMap;
 use alloc::string::String;
 use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
+use core::any::Any;
 use core::mem::uninitialized;
-use core::ops::Deref;
 use core::str;
 use rcore_fs::dev::block_cache::BlockCache;
-use rcore_fs::vfs::Result;
-use rcore_fs::vfs::{FileSystem, FileType, FsError, INode};
+use rcore_fs::vfs::*;
 use rcore_fs_sfs::{INodeId, SimpleFileSystem};
 use spin::RwLock;
 
 /// The filesystem on which all the other filesystems are mounted
 pub struct VirtualFS {
-    pub filesystem: Arc<FileSystem>,
-    pub mountpoints: BTreeMap<INodeId, Arc<RwLock<VirtualFS>>>,
-    pub self_mountpoint: Arc<INodeContainer>,
-    pub self_ref: Weak<RwLock<VirtualFS>>,
+    filesystem: Arc<FileSystem>,
+    mountpoints: BTreeMap<INodeId, Arc<RwLock<VirtualFS>>>,
+    self_mountpoint: Option<Arc<INodeContainer>>,
+    self_ref: Weak<RwLock<VirtualFS>>,
 }
 
 #[derive(Clone)]
 pub struct INodeContainer {
-    pub inode: Arc<INode>, //TODO: deref to this
+    pub inode: Arc<INode>,
     pub vfs: Arc<RwLock<VirtualFS>>,
+    self_ref: Weak<INodeContainer>,
 }
-impl Deref for INodeContainer {
-    type Target = INode;
-    fn deref(&self) -> &Self::Target {
-        self.inode.as_ref()
-    }
-}
+
 impl VirtualFS {
     pub fn init() -> Arc<RwLock<Self>> {
         VirtualFS {
             filesystem: VirtualFS::init_mount_sfs(),
             mountpoints: BTreeMap::new(),
-            self_mountpoint: Arc::new(unsafe { uninitialized() }), // This should NOT EVER BE ACCESSED!
+            self_mountpoint: None,
             self_ref: Weak::default(),
         }
         .wrap()
@@ -45,7 +40,7 @@ impl VirtualFS {
 
     /// Wrap pure `VirtualFS` with `Arc<RwLock<..>>`.
     /// Used in constructors.
-    pub fn wrap(self) -> Arc<RwLock<Self>> {
+    fn wrap(self) -> Arc<RwLock<Self>> {
         // Create an Arc, make a Weak from it, then put it into the struct.
         // It's a little tricky.
         let fs = Arc::new(RwLock::new(self));
@@ -114,21 +109,12 @@ impl VirtualFS {
     }
 
     pub fn root_inode(&self) -> Arc<INodeContainer> {
-        Arc::new(INodeContainer {
+        INodeContainer {
             inode: self.filesystem.root_inode(),
             vfs: self.self_ref.upgrade().unwrap(),
-        })
-    }
-
-    pub fn overlaid_mount_point(&self, ic: Arc<INodeContainer>) -> Arc<INodeContainer> {
-        let inode_id = ic.inode.metadata().unwrap().inode;
-        if let Some(sub_vfs) = self.mountpoints.get(&inode_id) {
-            let mut sub_inode = sub_vfs.read().root_inode();
-            //sub_inode.original_mountpoint=Some(Arc::new(ic));
-            sub_inode
-        } else {
-            ic
+            self_ref: Weak::default(),
         }
+        .wrap()
     }
 }
 
@@ -359,6 +345,46 @@ pub fn get_anonymous_fs() -> &'static Arc<RwLock<VirtualFS>> {
 }
 
 impl INodeContainer {
+    /// Wrap pure `INode` with `Arc<..>`.
+    /// Used in constructors.
+    fn wrap(self) -> Arc<Self> {
+        // Create an Arc, make a Weak from it, then put it into the struct.
+        // It's a little tricky.
+        let inode = Arc::new(self);
+        let weak = Arc::downgrade(&inode);
+        let ptr = Arc::into_raw(inode) as *mut Self;
+        unsafe {
+            (*ptr).self_ref = weak;
+            Arc::from_raw(ptr)
+        }
+    }
+
+    /// Mount file system `fs` at this INode
+    pub fn mount(self: &Arc<Self>, fs: Arc<FileSystem>) -> Result<Arc<RwLock<VirtualFS>>> {
+        let new_fs = VirtualFS {
+            filesystem: fs,
+            mountpoints: BTreeMap::new(),
+            self_mountpoint: Some(Arc::clone(self)),
+            self_ref: Weak::default(),
+        }
+        .wrap();
+        let inode_id = self.inode.metadata()?.inode;
+        let mut self_fs = self.vfs.write();
+        self_fs.mountpoints.insert(inode_id, new_fs.clone());
+        Ok(new_fs)
+    }
+
+    /// Get the root INode of the mounted fs at here.
+    /// Return self if no mounted fs.
+    fn overlaid_mount_point(&self) -> Arc<INodeContainer> {
+        let inode_id = self.metadata().unwrap().inode;
+        if let Some(sub_vfs) = self.vfs.read().mountpoints.get(&inode_id) {
+            sub_vfs.read().root_inode()
+        } else {
+            self.self_ref.upgrade().unwrap()
+        }
+    }
+
     pub fn is_very_root(&self) -> bool {
         PathConfig::init_root().has_reached_root(self)
     }
@@ -370,20 +396,30 @@ impl INodeContainer {
     /// Creates an anonymous inode.
     /// Should not be used as a location at any time, or be totally released at any time.
     pub unsafe fn anonymous_inode(inode: Arc<INode>) -> Arc<INodeContainer> {
-        Arc::new(INodeContainer {
+        INodeContainer {
             inode,
             vfs: Arc::clone(get_anonymous_fs()),
-        })
+            self_ref: Weak::default(),
+        }
+        .wrap()
     }
     pub unsafe fn is_anonymous(&self) -> bool {
         Arc::ptr_eq(&self.vfs, get_anonymous_fs())
     }
+
+    pub fn create(&self, name: &str, type_: FileType, mode: u32) -> Result<Arc<Self>> {
+        Ok(INodeContainer {
+            inode: self.inode.create(name, type_, mode)?,
+            vfs: self.vfs.clone(),
+            self_ref: Weak::default(),
+        }
+        .wrap())
+    }
+
     /// Does a one-level finding.
-    pub fn find(self: &Arc<INodeContainer>, root: bool, next: &str) -> Result<Arc<INodeContainer>> {
-        debug!("finding name {}", next);
-        debug!("in {:?}", self.inode.list().unwrap());
-        match next {
-            "" | "." => Ok(Arc::clone(&self)),
+    pub fn find(&self, root: bool, name: &str) -> Result<Arc<Self>> {
+        match name {
+            "" | "." => Ok(self.self_ref.upgrade().unwrap()),
             ".." => {
                 // Going Up
                 // We need to check these things:
@@ -392,27 +428,34 @@ impl INodeContainer {
                 //    thus requires falling back to parent of original_mountpoint?
                 // TODO: check going up.
                 if root {
-                    Ok(Arc::clone(&self))
+                    Ok(self.self_ref.upgrade().unwrap())
                 } else if self.is_root_inode() {
                     // Here is mountpoint.
-                    self.vfs.read().self_mountpoint.find(root, "..")
+                    match &self.vfs.read().self_mountpoint {
+                        Some(inode) => inode.find(root, ".."),
+                        // root fs
+                        None => Ok(self.self_ref.upgrade().unwrap()),
+                    }
                 } else {
                     // Not trespassing filesystem border. Parent and myself in the same filesystem.
-                    Ok(Arc::new(INodeContainer {
-                        inode: self.inode.find(next)?, // Going up is handled by the filesystem. A better API?
-                        vfs: Arc::clone(&self.vfs),
-                    }))
+                    Ok(INodeContainer {
+                        inode: self.inode.find(name)?, // Going up is handled by the filesystem. A better API?
+                        vfs: self.vfs.clone(),
+                        self_ref: Weak::default(),
+                    }
+                    .wrap())
                 }
             }
             _ => {
                 // Going down may trespass the filesystem border.
                 // An INode replacement is required here.
-                let next_ic = Arc::new(INodeContainer {
-                    inode: self.inode.find(next)?,
-                    vfs: Arc::clone(&self.vfs),
-                });
-                debug!("find Ok!");
-                Ok(self.vfs.read().overlaid_mount_point(next_ic))
+                Ok(INodeContainer {
+                    inode: self.inode.find(name)?,
+                    vfs: self.vfs.clone(),
+                    self_ref: Weak::default(),
+                }
+                .wrap()
+                .overlaid_mount_point())
             }
         }
     }
@@ -427,8 +470,7 @@ impl INodeContainer {
             match name.as_ref() {
                 "." | ".." => {}
                 _ => {
-                    let queryback = self.find(false, &name)?;
-                    let queryback = self.vfs.read().overlaid_mount_point(queryback);
+                    let queryback = self.find(false, &name)?.overlaid_mount_point();
                     // TODO: mountpoint check!
                     debug!("checking name {}", name);
                     if Arc::ptr_eq(&queryback.vfs, &child.vfs)
@@ -440,5 +482,98 @@ impl INodeContainer {
             }
         }
         Err(FsError::EntryNotFound)
+    }
+}
+
+impl FileSystem for VirtualFS {
+    fn sync(&self) -> Result<()> {
+        self.filesystem.sync()?;
+        Ok(())
+    }
+
+    fn root_inode(&self) -> Arc<INode> {
+        self.root_inode()
+    }
+
+    fn info(&self) -> FsInfo {
+        self.filesystem.info()
+    }
+}
+
+impl INode for INodeContainer {
+    fn read_at(&self, offset: usize, buf: &mut [u8]) -> Result<usize> {
+        self.inode.read_at(offset, buf)
+    }
+
+    fn write_at(&self, offset: usize, buf: &[u8]) -> Result<usize> {
+        self.inode.write_at(offset, buf)
+    }
+
+    fn poll(&self) -> Result<PollStatus> {
+        self.inode.poll()
+    }
+
+    fn metadata(&self) -> Result<Metadata> {
+        self.inode.metadata()
+    }
+
+    fn set_metadata(&self, metadata: &Metadata) -> Result<()> {
+        self.inode.set_metadata(metadata)
+    }
+
+    fn sync_all(&self) -> Result<()> {
+        self.inode.sync_all()
+    }
+
+    fn sync_data(&self) -> Result<()> {
+        self.inode.sync_data()
+    }
+
+    fn resize(&self, len: usize) -> Result<()> {
+        self.inode.resize(len)
+    }
+
+    fn create(&self, name: &str, type_: FileType, mode: u32) -> Result<Arc<INode>> {
+        Ok(self.create(name, type_, mode)?)
+    }
+
+    fn link(&self, name: &str, other: &Arc<INode>) -> Result<()> {
+        let other = &other
+            .downcast_ref::<Self>()
+            .ok_or(FsError::NotSameFs)?
+            .inode;
+        self.inode.link(name, other)
+    }
+
+    fn unlink(&self, name: &str) -> Result<()> {
+        self.inode.unlink(name)
+    }
+
+    fn move_(&self, old_name: &str, target: &Arc<INode>, new_name: &str) -> Result<()> {
+        let target = &target
+            .downcast_ref::<Self>()
+            .ok_or(FsError::NotSameFs)?
+            .inode;
+        self.inode.move_(old_name, target, new_name)
+    }
+
+    fn find(&self, name: &str) -> Result<Arc<INode>> {
+        Ok(self.find(false, name)?)
+    }
+
+    fn get_entry(&self, id: usize) -> Result<String> {
+        self.inode.get_entry(id)
+    }
+
+    fn io_control(&self, cmd: u32, data: usize) -> Result<()> {
+        self.inode.io_control(cmd, data)
+    }
+
+    fn fs(&self) -> Arc<FileSystem> {
+        self.inode.fs()
+    }
+
+    fn as_any_ref(&self) -> &Any {
+        self
     }
 }
