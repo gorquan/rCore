@@ -4,10 +4,10 @@ use core::cell::UnsafeCell;
 use core::cmp::min;
 use core::mem::size_of;
 
-use crate::fs::get_virtual_fs;
-use crate::fs::vfs::{INodeContainer, PathResolveResult, VirtualFS};
+use crate::fs::vfs::{PathConfig, PathResolveResult};
 #[cfg(not(target_arch = "mips"))]
 use rcore_fs::vfs::Timespec;
+use rcore_fs_mountfs::MNode as INodeContainer;
 
 use crate::drivers::SOCKET_ACTIVITY;
 use crate::fs::*;
@@ -376,13 +376,10 @@ impl Syscall<'_> {
         }
         let buf = unsafe { self.vm().check_write_array(buf, len)? };
 
-        //use crate::fs::VIRTUAL_FS;
-        use crate::fs::vfs::VirtualFS;
-        use spin::RwLock;
         // TODO: a more graceful and natural implementation?
         let mut current_inode = Arc::clone(&proc.cwd.cwd);
         let root_inode_id = proc.cwd.root.metadata().unwrap().inode;
-        let total_root_vfs: Arc<INodeContainer> = get_virtual_fs().read().root_inode();
+        let total_root_vfs: Arc<INodeContainer> = VIRTUAL_FS.root_inode();
         let total_inode_id = total_root_vfs.metadata().unwrap().inode;
         let mut path_parts: Vec<String> = Vec::new();
         let mut unreachable = false;
@@ -599,7 +596,7 @@ impl Syscall<'_> {
         let ic = Arc::clone(&file.inode_container);
         let mut writer = unsafe { DirentBufWriter::new(buf) };
         let is_file_root = proc.cwd.has_reached_root(&ic);
-        let is_current_very_root = ic.is_very_root();
+        let is_current_very_root = PathConfig::init_root().has_reached_root(&ic);
         let file = proc.get_file(fd)?; //re-borrow?
         loop {
             let name = match file.read_entry() {
@@ -815,7 +812,7 @@ impl Syscall<'_> {
         let path = check_and_clone_cstr(path)?;
         info!("rmdir: path: {:?}", path);
 
-        let inode = &(match proc.cwd.path_resolve(&proc.cwd.cwd, &path, false)? {
+        let inode = match proc.cwd.path_resolve(&proc.cwd.cwd, &path, false)? {
             PathResolveResult::IsDir { dir } => dir,
             PathResolveResult::IsFile { file, .. } => {
                 return Err(SysError::ENOTDIR);
@@ -823,18 +820,15 @@ impl Syscall<'_> {
             PathResolveResult::NotExist { .. } => {
                 return Err(SysError::ENOENT);
             }
-        });
-        if inode.is_root_inode() {
-            return Err(SysError::EBUSY);
-        }
+        };
 
-        if proc.cwd.has_reached_root(inode) || inode.is_very_root() {
+        if proc.cwd.has_reached_root(&inode) || PathConfig::init_root().has_reached_root(&inode) {
             return Err(SysError::EBUSY);
         }
         //now safely find parent.
         let parent = inode.find(false, "..")?;
         // inode is not a mountpoint, so two files lie in same fs.
-        let name = parent.find_name_by_child(inode)?;
+        let name = parent.find_name_by_child(&inode)?;
         parent.unlink(&name)?;
         Ok(0)
     }
@@ -939,7 +933,7 @@ impl Syscall<'_> {
     pub fn sys_sync(&mut self) -> SysResult {
         //TODO: recursive sync
         use rcore_fs::vfs::FileSystem;
-        get_virtual_fs().read().sync()?;
+        VIRTUAL_FS.sync()?;
         Ok(0)
     }
 
@@ -958,7 +952,6 @@ impl Syscall<'_> {
         info!("mount: target: {}", target);
         let ret = match proc.cwd.path_resolve(&proc.cwd.cwd, &target, false)? {
             PathResolveResult::IsDir { dir } => {
-                let mut vfs = dir.vfs.write();
                 let source = unsafe { check_and_clone_cstr(source)? };
                 let fstype = unsafe { check_and_clone_cstr(fstype)? };
                 let fsm = FileSystemManager::get().read();
@@ -1132,6 +1125,7 @@ impl From<FsError> for SysError {
             FsError::NoDevice => SysError::ENXIO,
             FsError::IOCTLError => SysError::EINVAL,
             FsError::Again => SysError::EAGAIN,
+            FsError::Busy => SysError::EBUSY,
         }
     }
 }

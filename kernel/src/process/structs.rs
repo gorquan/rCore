@@ -20,7 +20,7 @@ use crate::memory::{
 use crate::sync::{Condvar, SpinNoIrqLock as Mutex};
 
 use super::abi::{self, ProcInitInfo};
-use crate::fs::vfs::{INodeContainer, PathConfig, PathResolveResult};
+use crate::fs::vfs::{PathConfig, PathResolveResult};
 use crate::fs::{STDIN, STDOUT};
 use crate::processor;
 use core::mem::MaybeUninit;

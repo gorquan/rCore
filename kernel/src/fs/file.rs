@@ -4,7 +4,7 @@ use crate::thread;
 use alloc::{string::String, sync::Arc};
 use core::fmt;
 
-use crate::fs::vfs::INodeContainer;
+use rcore_fs_mountfs::MNode as INodeContainer;
 use rcore_fs::vfs::{FsError, INode, Metadata, PollStatus, Result};
 
 #[derive(Clone)]

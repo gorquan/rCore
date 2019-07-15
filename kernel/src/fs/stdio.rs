@@ -4,9 +4,9 @@ use alloc::{collections::vec_deque::VecDeque, string::String, sync::Arc};
 use core::any::Any;
 
 use rcore_fs::vfs::*;
+use rcore_fs_mountfs::MNode as INodeContainer;
 
 use super::ioctl::*;
-use crate::fs::vfs::INodeContainer;
 use crate::sync::Condvar;
 use crate::sync::SpinNoIrqLock as Mutex;
 #[derive(Default)]

@@ -1,11 +1,11 @@
 use rcore_memory::memory_set::handler::{Delay, File, Linear};
 use rcore_memory::memory_set::MemoryAttr;
 use rcore_memory::PAGE_SIZE;
+use rcore_fs_mountfs::MNode as INodeContainer;
 
 use crate::memory::GlobalFrameAlloc;
 
 use super::*;
-use crate::fs::vfs::INodeContainer;
 
 impl Syscall<'_> {
     pub fn sys_mmap(
